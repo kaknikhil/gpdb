@@ -90,9 +90,9 @@ class Repair:
         out_filename = "{0}_{1}_{2}".format(self._context.dbname, self._issue_type, self.TIMESTAMP)
         bash_script_content = '\necho "{0}"\n'.format(self._desc)
         bash_script_content += self.__get_psql_command(segment_id).format(hostname=c['hostname'],
-                                                                                      port=c['port'], sql=filename,
-                                                                                      dbname=self._context.dbname,
-                                                                                      filename=out_filename)
+                                                                          port=c['port'], sql=filename,
+                                                                          dbname=self._context.dbname,
+                                                                          filename=out_filename)
         return bash_script_content
 
     def __get_psql_command(self, segment_id):
