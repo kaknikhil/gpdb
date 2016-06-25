@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""
+Purpose : Creates the repair dir and the corresponding sql/bash scripts for
+          repairing some of the catalog issues(see the list below) reported by gpcheckcat.
+          Not responsible for generating the repair contents.
+
+Creates repair for the following gpcheckcat checks
+       * missing_extraneous
+       * owner
+       * part_integrity
+       * distribution_policy
+"""
+
 import os
 import stat
 from datetime import datetime
