@@ -2854,7 +2854,10 @@ def checkTableForeignKey(cat):
         pkeystr = ', '.join(fkeydef.getPKey())
         pkcatname = fkeydef.getPkeyTableName()
 
-        qry = fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
+        if catname=='pg_attribute' and pkcatname=='pg_class':
+            qry = fkQuery2(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
+        else:
+            qry = fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
 
         # Execute the query
         try:
@@ -2928,6 +2931,38 @@ def fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
 
     return qry
 
+def fkQuery2(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
+    qry = """
+          SELECT {primary_key_alias}, {cat2_dot_pk},
+                 array_agg(gp_segment_id order by gp_segment_id) as segids
+          FROM (
+                SELECT cat1.gp_segment_id, {cat1_dot_pk}, coalesce(cat1.{FK1}, cat2.{PK2}) as {cat2_dot_pk}
+                FROM
+                    gp_dist_random('{CATALOG1}') cat1 FULL OUTER JOIN
+                    gp_dist_random('{CATALOG2}') cat2
+                    ON (cat1.gp_segment_id = cat2.gp_segment_id AND
+                        cat1.{FK1} = cat2.{PK2} )
+                WHERE (cat2.{PK2} is NULL or cat1.{FK1} is NULL)
+                UNION ALL
+                SELECT -1 as gp_segment_id, {cat1_dot_pk}, coalesce(cat1.{FK1}, cat2.{PK2})
+                FROM
+                    {CATALOG1} cat1 FULL OUTER JOIN
+                    {CATALOG2} cat2
+                    ON (cat1.gp_segment_id = cat2.gp_segment_id AND
+                        cat1.{FK1} = cat2.{PK2} )
+                WHERE (cat2.{PK2} is NULL or cat1.{FK1} is NULL)
+                ORDER BY {primary_key_alias}, gp_segment_id
+          ) allresults
+          GROUP BY {primary_key_alias}, {cat2_dot_pk}
+          """.format(FK1=fkeystr,
+                     PK2=pkeystr,
+                     CATALOG1=catname,
+                     CATALOG2=pkcatname,
+                     cat1_dot_pk=', '.join(cat1pkeys),
+                     cat2_dot_pk='%s_%s' % (pkcatname, pkeystr),
+                     primary_key_alias=', '.join(pkeys))
+
+    return qry
 
 # -------------------------------------------------------------------------------
 def checkMissingEntry():
@@ -4225,7 +4260,7 @@ class CatForeignKeyIssue:
 
     def report(self):
 
-        ids = [int(i) for i in self.segids[1:-1].split(',')]
+        ids = [int(i) for i in self.segids[1:-1].split(',') if i!='NULL']
         idstr = ''
         if len(ids) == len(GV.report_cfg):
             idstr = 'all segments'
