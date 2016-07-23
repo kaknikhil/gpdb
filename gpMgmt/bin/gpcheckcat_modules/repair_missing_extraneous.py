@@ -37,7 +37,10 @@ class RepairMissingExtraneous:
             oid = issue[0]
 
             issue_type = issue[-2]
-            seg_ids = issue[-1].strip('{}').split(',')
+            if issue[-1]:
+                seg_ids = issue[-1].strip('{}').split(',')
+            else:
+                seg_ids = all_seg_ids
 
             # if an oid is missing from a segment(s) , then it is considered to be extra
             # on all the other segments/master

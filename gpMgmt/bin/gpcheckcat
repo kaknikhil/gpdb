@@ -2854,10 +2854,10 @@ def checkTableForeignKey(cat):
         pkeystr = ', '.join(fkeydef.getPKey())
         pkcatname = fkeydef.getPkeyTableName()
 
-        if catname=='pg_attribute' and pkcatname=='pg_class':
-            qry = fkQuery2(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
-        else:
-            qry = fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
+        # if catname=='pg_attribute' and pkcatname=='pg_class':
+        #     qry = fkQuery2(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
+        # else:
+        qry = fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
 
         # Execute the query
         try:
@@ -2870,8 +2870,6 @@ def checkTableForeignKey(cat):
                             (catname, fkeystr, pkcatname, pkeystr))
             else:
                 GV.checkStatus = False
-                setError(ERROR_NOREPAIR)
-                GV.foreignKeyStatus = False
                 logger.info('[FAIL] Foreign key check for %s(%s) referencing %s(%s)' %
                             (catname, fkeystr, pkcatname, pkeystr))
                 logger.error('  %s has %d issue(s): entry has NULL reference of %s(%s)' %
@@ -2881,7 +2879,8 @@ def checkTableForeignKey(cat):
                 log_literal(logger, logging.ERROR, "    " + " | ".join(fields))
                 for row in curs.getresult():
                     log_literal(logger, logging.ERROR, "    " + " | ".join(map(str, row)))
-                processForeignKeyResult(catname, pkcatname, fields, curs.getresult())
+                results = curs.getresult()
+                processForeignKeyResult(catname, pkcatname, fields, results)
 
                 if catname == 'gp_fastsequence' and pkcatname == 'pg_class':
                     setError(ERROR_REMOVE)
@@ -2928,6 +2927,13 @@ def fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
                      cat1_dot_pk=', '.join(cat1pkeys),
                      cat2_dot_pk='%s_%s' % (pkcatname, pkeystr),
                      primary_key_alias=', '.join(pkeys))
+
+    # if catname == 'pg_attribute' and pkcatname == 'pg_class':
+        # print qry
+    # if catname == 'pg_class' and pkcatname == 'pg_attribute':
+        # print qry
+    # if catname == 'pg_class' and pkcatname == 'pg_type':
+        # print qry
 
     return qry
 
@@ -4154,6 +4160,7 @@ def processForeignKeyResult(catname, pkcatname, colname, allValues):
         if gpColName == TableMainColumn[catname][0]:
             gpObjName = TableMainColumn[catname][1]
 
+    catalog_issues = dict()
     # Process each row
     for row in allValues:
         rowObjName = gpObjName
@@ -4173,7 +4180,10 @@ def processForeignKeyResult(catname, pkcatname, colname, allValues):
             oid = getResourceTypeOid(oid)
         gpObj = getGPObject(oid, rowObjName)
         gpObj.addForeignKeyIssue(issue)
+        format = [(oid, 'foreign_key', None)]
+        catalog_issues[fkeytab, fkeylist[0]] = format
 
+    do_repair_for_extra(catalog_issues)
 
 def getPrimaryKeyColumn(catname, pknames):
     # We have to look up key to report (pg_pltemplate)
@@ -4260,7 +4270,7 @@ class CatForeignKeyIssue:
 
     def report(self):
 
-        ids = [int(i) for i in self.segids[1:-1].split(',') if i!='NULL']
+        ids = [int(i) for i in self.segids[1:-1].split(',')]
         idstr = ''
         if len(ids) == len(GV.report_cfg):
             idstr = 'all segments'
