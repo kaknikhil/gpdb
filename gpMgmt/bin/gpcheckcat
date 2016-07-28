@@ -2847,6 +2847,7 @@ def checkTableForeignKey(cat):
         pkeys.append('%s_%s' % (catname, pk))
 
     logger.info('Building %d queries to check FK constraint on table %s' % (len(fkeylist), catname))
+    full_join_cat_tables = set(['pg_attribute','s'])
     for fkeydef in fkeylist:
         castedFkey = [c + autoCast.get(coltypes[c], '') for c in fkeydef.getColumns()]
         fkeystr = ', '.join(castedFkey)
@@ -2854,10 +2855,10 @@ def checkTableForeignKey(cat):
         pkeystr = ', '.join(fkeydef.getPKey())
         pkcatname = fkeydef.getPkeyTableName()
 
-        # if catname=='pg_attribute' and pkcatname=='pg_class':
-        #     qry = fkQuery2(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
-        # else:
-        qry = fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
+        if catname in full_join_cat_tables and pkcatname == 'pg_class':
+            qry = get_fk_query_full_join(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
+        else:
+            qry = get_fk_query_left_join(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys)
 
         # Execute the query
         try:
@@ -2880,11 +2881,12 @@ def checkTableForeignKey(cat):
                 for row in curs.getresult():
                     log_literal(logger, logging.ERROR, "    " + " | ".join(map(str, row)))
                 results = curs.getresult()
-                processForeignKeyResult(catname, pkcatname, fields, results)
+                processForeignKeyResult(catname, pkcatname, fields, results, fkeydef.getColumns()[0])
 
                 if catname == 'gp_fastsequence' and pkcatname == 'pg_class':
                     setError(ERROR_REMOVE)
                     removeFastSequence(db)
+
 
         except Exception, e:
             setError(ERROR_NOREPAIR)
@@ -2895,7 +2897,7 @@ def checkTableForeignKey(cat):
 
 
 # -------------------------------------------------------------------------------
-def fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
+def get_fk_query_left_join(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
     qry = """
           SELECT {primary_key_alias}, {cat2_dot_pk},
                  array_agg(gp_segment_id order by gp_segment_id) as segids
@@ -2928,35 +2930,31 @@ def fkQuery(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
                      cat2_dot_pk='%s_%s' % (pkcatname, pkeystr),
                      primary_key_alias=', '.join(pkeys))
 
-    # if catname == 'pg_attribute' and pkcatname == 'pg_class':
-        # print qry
-    # if catname == 'pg_class' and pkcatname == 'pg_attribute':
-        # print qry
-    # if catname == 'pg_class' and pkcatname == 'pg_type':
-        # print qry
-
     return qry
 
-def fkQuery2(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
+
+def get_fk_query_full_join(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
     qry = """
           SELECT {primary_key_alias}, {cat2_dot_pk},
                  array_agg(gp_segment_id order by gp_segment_id) as segids
           FROM (
-                SELECT cat1.gp_segment_id, {cat1_dot_pk}, coalesce(cat1.{FK1}, cat2.{PK2}) as {cat2_dot_pk}
+                SELECT cat1.gp_segment_id, {cat1_dot_pk}, cat1.{FK1} as {cat2_dot_pk}
                 FROM
-                    gp_dist_random('{CATALOG1}') cat1 FULL OUTER JOIN
+                    gp_dist_random('{CATALOG1}') cat1 LEFT OUTER JOIN
                     gp_dist_random('{CATALOG2}') cat2
                     ON (cat1.gp_segment_id = cat2.gp_segment_id AND
                         cat1.{FK1} = cat2.{PK2} )
-                WHERE (cat2.{PK2} is NULL or cat1.{FK1} is NULL)
+                WHERE cat2.{PK2} is NULL
+                  AND cat1.{FK1} != 0
                 UNION ALL
-                SELECT -1 as gp_segment_id, {cat1_dot_pk}, coalesce(cat1.{FK1}, cat2.{PK2})
+                SELECT -1 as gp_segment_id, {cat1_dot_pk}, cat1.{FK1} as {cat2_dot_pk}
                 FROM
-                    {CATALOG1} cat1 FULL OUTER JOIN
+                    {CATALOG1} cat1 LEFT OUTER JOIN
                     {CATALOG2} cat2
                     ON (cat1.gp_segment_id = cat2.gp_segment_id AND
                         cat1.{FK1} = cat2.{PK2} )
-                WHERE (cat2.{PK2} is NULL or cat1.{FK1} is NULL)
+                WHERE cat2.{PK2} is NULL
+                  AND cat1.{FK1} != 0
                 ORDER BY {primary_key_alias}, gp_segment_id
           ) allresults
           GROUP BY {primary_key_alias}, {cat2_dot_pk}
@@ -2969,7 +2967,6 @@ def fkQuery2(catname, pkcatname, fkeystr, pkeystr, pkeys, cat1pkeys):
                      primary_key_alias=', '.join(pkeys))
 
     return qry
-
 # -------------------------------------------------------------------------------
 def checkMissingEntry():
     logger.info('-----------------------------------')
@@ -4141,7 +4138,7 @@ def processInconsistentEntryResult(catname, pknames, colname, allValues):
 
 
 # -------------------------------------------------------------------------------
-def processForeignKeyResult(catname, pkcatname, colname, allValues):
+def processForeignKeyResult(catname, pkcatname, colname, allValues, fkeyname):
     '''
     colname:    pg_class_relname | pg_class_relnamespace | pg_type_oid | segids
     allValues:            test11 | 2200 | 17389 | {-1,0,1,2,3}
@@ -4166,6 +4163,7 @@ def processForeignKeyResult(catname, pkcatname, colname, allValues):
         rowObjName = gpObjName
         segids = row[-1]
         oid = row[len(colname) - 2]
+        format = [(oid, 'foreign_key', None)]
         # Build fkeys dict: used to find oid of pg_class
         fkeys = dict((n, row[colname.index(fkeytab + '_' + n)]) for n in fkeylist)
         issue = CatForeignKeyIssue(pkcatname, {gpColName: oid}, segids, catname, fkeys)
@@ -4180,8 +4178,7 @@ def processForeignKeyResult(catname, pkcatname, colname, allValues):
             oid = getResourceTypeOid(oid)
         gpObj = getGPObject(oid, rowObjName)
         gpObj.addForeignKeyIssue(issue)
-        format = [(oid, 'foreign_key', None)]
-        catalog_issues[fkeytab, fkeylist[0]] = format
+        catalog_issues[fkeytab, fkeyname] = format
 
     do_repair_for_extra(catalog_issues)
 
