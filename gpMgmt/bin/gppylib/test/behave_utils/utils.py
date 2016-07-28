@@ -15,7 +15,7 @@ from gppylib.commands.base import Command, ExecutionError, REMOTE
 from gppylib.commands.gp import chk_local_db_running
 from gppylib.db import dbconn
 from gppylib.gparray import GpArray, MODE_SYNCHRONIZED
-from gppylib.operations.backup_utils import pg, escapeDoubleQuoteInSQLString
+from gppylib.operations.backup_utils import pg, escapeDoubleQuoteInSQLString, csv_string_to_tuple, tablename_to_tuple
 
 PARTITION_START_DATE = '2010-01-01'
 PARTITION_END_DATE = '2013-01-01'
@@ -250,6 +250,7 @@ def clear_all_saved_data_verify_files(context):
     run_command(context, cmd)
 
 def get_table_data_to_file(filename, tablename, dbname):
+    schema_name, table_name = __get_schema_and_table_tuple(tablename)
     current_dir = os.getcwd()
     filename = os.path.join(current_dir, './gppylib/test/data', filename)
     order_sql = """
@@ -259,10 +260,10 @@ def get_table_data_to_file(filename, tablename, dbname):
                                 from pg_class as c
                                     inner join pg_namespace as n
                                     on c.relnamespace = n.oid
-                                where (n.nspname || '.' || c.relname = E'%s')
-                                    or c.relname = E'%s'
+                                where (n.nspname = '{0}' and c.relname = '{1}')
+                                    or c.relname = '{1}'
                         ) as q;
-                """ % (pg.escape_string(tablename), pg.escape_string(tablename))
+                """.format(pg.escape_string(schema_name), pg.escape_string(table_name))
     query = order_sql
     conn = dbconn.connect(dbconn.DbURL(dbname=dbname))
     try:
@@ -281,6 +282,16 @@ def get_table_data_to_file(filename, tablename, dbname):
         print "Cannot execute the query '%s' on the connection %s" % (query, str(dbconn.DbURL(dbname=dbname)))
         print "Exception: %s" % str(e)
     conn.close()
+
+def __get_schema_and_table_tuple(tablename):
+    table_tuple = csv_string_to_tuple(tablename, delimiter='.', terminator='')
+    schema_name = ""
+    if len(table_tuple) == 2:
+        schema_name, table_name = table_tuple
+    else:
+        table_name = table_tuple[0]
+
+    return schema_name, table_name
 
 def diff_backup_restore_data(context, backup_file, restore_file):
     if not filecmp.cmp(backup_file, restore_file):
@@ -343,19 +354,22 @@ def check_partition_table_exists(context, dbname, schemaname, table_name, table_
     return check_table_exists(context, dbname, partitions[0][0].strip(), table_type) 
 
 def check_table_exists(context, dbname, table_name, table_type=None, host=None, port=0, user=None):
-    if '.' in table_name:
-        schemaname, tablename = table_name.split('.')
+    # table_name = "\" S`~@#$%^&*()-+[{]}|\\;: \\\\'\"/?><1 \".\" ao_T`~@#$%^&*()-+[{]}|\\;: \\\\'\"/?><1 \""
+    # table_name1 = '" S`~@#$%^&*()-+[{]}|\\;: \\\\/?><1 "." ao_T`~@#$%^&*()-+[{]}|\\;: \\\\/?><1 "'
+    schemaname, tablename = __get_schema_and_table_tuple(table_name)
+    # schemaname1, tablename1 = __get_schema_and_table_tuple(table_name1)
+    if schemaname:
         SQL = """
               select c.oid, c.relkind, c.relstorage, c.reloptions
               from pg_class c, pg_namespace n
-              where c.relname = '%s' and n.nspname = '%s' and c.relnamespace = n.oid;
-              """ % (pg.escape_string(tablename), pg.escape_string(schemaname))
+              where nspname = '{0}' and c.relname = '{1}' and c.relnamespace = n.oid;
+              """.format(pg.escape_string(schemaname), pg.escape_string(tablename))
     else:
         SQL = """
-              select oid, relkind, relstorage, reloptions \
-              from pg_class \
-              where relname = E'%s'; \
-              """ % pg.escape_string(table_name)
+              select oid, relkind, relstorage, reloptions
+              from pg_class where relname = '{0}';
+              """.format(pg.escape_string(tablename))
+
 
     table_row = None 
     with dbconn.connect(dbconn.DbURL(hostname=host, port=port, username=user, dbname=dbname)) as conn:
