@@ -3863,9 +3863,9 @@ def impl(context, dir):
     run_command(context, command)
 
 
-@when('the entry for the table "{user_table}" is removed from "{catalog_table}" in the database "{db_name}"')
-def impl(context, user_table, catalog_table, db_name):
-    delete_qry = "delete from %s where relname='%s';" % (catalog_table, user_table)
+@when('the entry for the table "{user_table}" is removed from "{catalog_table}" with key "{primary_key}" in the database "{db_name}"')
+def impl(context, user_table, catalog_table, primary_key, db_name):
+    delete_qry = "delete from %s where %s='%s';" % (catalog_table, primary_key, user_table)
 
     with dbconn.connect(dbconn.DbURL(dbname=db_name)) as conn:
         for qry in ["set allow_system_table_mods='dml';", "set allow_segment_dml=true;", delete_qry]:
