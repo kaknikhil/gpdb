@@ -169,6 +169,83 @@ class GpCheckCatTestCase(GpTestCase):
         self.subject.setError.assert_any_call(self.subject.ERROR_REMOVE)
         self.subject.print_repair_issues.assert_any_call("/tmp")
 
+    def test_fkQuery__returns_the_correct_query(self):
+        expected_query = """
+          SELECT input5-1, input5-2, input2_input4,
+                 array_agg(gp_segment_id order by gp_segment_id) as segids
+          FROM (
+                SELECT cat1.gp_segment_id, input6-1, input6-2, cat1.input3 as input2_input4
+                FROM
+                    gp_dist_random('input1') cat1 LEFT OUTER JOIN
+                    gp_dist_random('input2') cat2
+                    ON (cat1.gp_segment_id = cat2.gp_segment_id AND
+                        cat1.input3 = cat2.input4 )
+                WHERE cat2.input4 is NULL
+                  AND cat1.input3 != 0
+                UNION ALL
+                SELECT -1 as gp_segment_id, input6-1, input6-2, cat1.input3 as input2_input4
+                FROM
+                    input1 cat1 LEFT OUTER JOIN
+                    input2 cat2
+                    ON (cat1.gp_segment_id = cat2.gp_segment_id AND
+                        cat1.input3 = cat2.input4 )
+                WHERE cat2.input4 is NULL
+                  AND cat1.input3 != 0
+                ORDER BY input5-1, input5-2, gp_segment_id
+          ) allresults
+          GROUP BY input5-1, input5-2, input2_input4
+          """
+        result_query = self.subject.fkQuery("input1", "input2", "input3", "input4", ["input5-1", "input5-2"], ["input6-1", "input6-2"])
+        self.assertEquals(expected_query, result_query)
+
+    @patch('gpcheckcat.checkTableForeignKey')
+    def test_checkForeignKey(self, mock1):
+        cat_mock = Mock(spec=['getCatalogTables'])
+        cat_mock.getCatalogTables.return_value = ["input1", "input2"]
+        self.subject.GV.catalog = cat_mock
+
+        self.subject.checkForeignKey()
+
+        self.assertTrue(self.subject.GV.catalog.getCatalogTables.call_count)
+
+        self.assertEquals(len(self.subject.checkTableForeignKey.call_args_list), len(self.subject.GV.catalog.getCatalogTables()))
+
+        for table in self.subject.GV.catalog.getCatalogTables():
+            self.assertIn(call(table), self.subject.checkTableForeignKey.call_args_list)
+
+    @patch('gpcheckcat.get_fk_query_full_join')
+    def test_get_fk_query_full_join__returns_full_join_query(self, fk_query_full_join_mock):
+        catalog_table_mock = Mock(spec=['getTableName','isShared','getForeignKeys','getPrimaryKey','getTableColtypes'])
+
+        attribute_foreign_key_class_mock= Mock(spec=['getPKey', 'getPkeyTableName', 'getColumns'])
+        attribute_foreign_key_class_mock.getPKey.return_value = ['oid']
+        attribute_foreign_key_class_mock.getPkeyTableName.return_value = 'pg_class'
+        attribute_foreign_key_class_mock.getColumns.return_value = ['attrelid']
+
+        attribute_foreign_key_type_mock= Mock(spec=['getPKey', 'getPkeyTableName', 'getColumns'])
+        attribute_foreign_key_type_mock.getPKey.return_value = ['oid']
+        attribute_foreign_key_type_mock.getPkeyTableName.return_value = 'pg_type'
+        attribute_foreign_key_type_mock.getColumns.return_value = ['atttypid']
+
+        catalog_table_mock.getTableName.return_value = "pg_attribute"
+        catalog_table_mock.isShared.return_value = True
+        catalog_table_mock.getForeignKeys.return_value = [attribute_foreign_key_class_mock, attribute_foreign_key_type_mock]
+        catalog_table_mock.getPrimaryKey.return_value = ["attrelid", 'attname']
+        catalog_table_mock.getTableColtypes.return_value = {'attlen': 'int2', 'atthasdef': 'bool', 'attndims': 'int4',
+                                                            'attnum': 'int2', 'attname': 'name', 'attalign': 'char',
+                                                            'attnotnull': 'bool', 'atttypid': 'oid', 'attrelid': 'oid',
+                                                            'attinhcount': 'int4', 'attcacheoff': 'int4',
+                                                            'attislocal': 'bool', 'attstattarget': 'int4',
+                                                            'attstorage': 'char', 'attbyval': 'bool',
+                                                            'atttypmod': 'int4', 'attisdropped': 'bool'}
+
+        self.subject.checkTableForeignKey(catalog_table_mock)
+        self.db_connection.query.call_count = 2
+        pg_class_call = call('pg_attribute', 'pg_class', 'attrelid', 'oid', ['pg_attribute_attrelid', 'pg_attribute_attname'], ['cat1.attrelid as pg_attribute_attrelid', 'cat1.attname as pg_attribute_attname'])
+        foreign_key_mock_calls = [pg_class_call]
+        fk_query_full_join_mock.call_count = 1
+        fk_query_full_join_mock.assert_has_calls(foreign_key_mock_calls, any_order=False)
+
     ####################### PRIVATE METHODS #######################
     def _run_batch_size_experiment(self, num_primaries):
         BATCH_SIZE = 4
