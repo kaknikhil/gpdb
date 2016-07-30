@@ -2847,7 +2847,7 @@ def checkTableForeignKey(cat):
         pkeys.append('%s_%s' % (catname, pk))
 
     logger.info('Building %d queries to check FK constraint on table %s' % (len(fkeylist), catname))
-    full_join_cat_tables = set(['pg_attribute','s'])
+    full_join_cat_tables = set(['pg_attribute','gp_distribution_policy','pg_appendonly','pg_constraint','pg_index'])
     for fkeydef in fkeylist:
         castedFkey = [c + autoCast.get(coltypes[c], '') for c in fkeydef.getColumns()]
         fkeystr = ', '.join(castedFkey)
