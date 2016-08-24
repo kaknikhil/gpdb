@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 from gppylib.db import dbconn
 from gppylib.test.behave_utils.utils import check_schema_exists, check_table_exists, drop_table_if_exists
@@ -77,9 +78,9 @@ def impl(context, qualified_table):
     found,filename = table_found_in_state_file(context.dbname, qualified_table)
     if not found:
         if filename == '':
-            assert False, "no state files found for database %s" % context.dbname
+            raise Exception("no state files found for database %s" % context.dbname)
         else:
-            assert False, "table %s not found in state file %s" % (qualified_table, os.path.basename(filename))
+            raise Exception("table %s not found in state file %s" % (qualified_table, os.path.basename(filename)))
 
 @given('columns "{col_name_list}" of table "{qualified_table}" appear in the latest column state file')
 @then('columns "{col_name_list}" of table "{qualified_table}" should appear in the latest column state file')
@@ -87,9 +88,9 @@ def impl(context, col_name_list, qualified_table):
     found,column,filename = column_found_in_state_file(context.dbname, qualified_table, col_name_list)
     if not found:
         if filename == '':
-            assert False, "no column state file found for database %s" % context.dbname
+            raise Exception("no column state file found for database %s" % context.dbname)
         else:
-            assert False, "column(s) %s of table %s not found in state file %s" % (column, qualified_table, os.path.basename(filename))
+            raise Exception("column(s) %s of table %s not found in state file %s" % (column, qualified_table, os.path.basename(filename)))
 
 @given('column "{col_name}" of table "{qualified_table}" does not appear in the latest column state file')
 @then('column "{col_name}" of table "{qualified_table}" should not appear in the latest column state file')
@@ -97,9 +98,10 @@ def impl(context, col_name, qualified_table):
     found,column,filename = column_found_in_state_file(context.dbname, qualified_table, col_name)
     if found:
         if filename == '':
-            assert False, "no column state file found for database %s" % context.dbname
+            raise Exception("no column state file found for database %s" % context.dbname)
         else:
-            assert False, "unexpected column %s of table %s found in state file %s" % (column, qualified_table, os.path.basename(filename))
+            raise Exception("unexpected column %s of table %s found in state file %s" % (column, qualified_table, os.path.basename(filename)))
+
 
 @then('output should contain either "{output1}" or "{output2}"')
 def impl(context, output1, output2):
