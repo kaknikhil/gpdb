@@ -484,7 +484,7 @@ def tablename_list_to_tuple_list(table_list):
         for row in reader:
             if row and len(row) != 2:
                 raise Exception("%s is not in the format schema.table" % ".".join(row))
-            content.append(row)
+            content.append(tuple(row))
         return content
     finally:
         sio.close()

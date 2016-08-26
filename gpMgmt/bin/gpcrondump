@@ -612,7 +612,7 @@ class GpCronDump(Operation):
             for (schema, table) in self.context.include_dump_tables:
                 if schema.startswith('pg_temp_'):
                     continue
-                dump_tables_without_pg_temp.append([schema, table])
+                dump_tables_without_pg_temp.append((schema, table))
             self.context.include_dump_tables = dump_tables_without_pg_temp
             include_file = expand_partitions_and_populate_filter_file(dbname, self.context.include_dump_tables, 'include_dump_tables_file')
             self.context.include_dump_tables = []
