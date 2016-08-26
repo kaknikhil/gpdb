@@ -1153,9 +1153,9 @@ class CheckTableExists(Operation):
         self.schema = schema
         self.table = table
         if CheckTableExists.all_tables is None:
-            CheckTableExists.all_tables = []
+            CheckTableExists.all_tables = set()
             for (schema, table) in get_user_table_list(context):
-                CheckTableExists.all_tables.append((schema, table))
+                CheckTableExists.all_tables.add((schema, table))
 
     def execute(self):
         if (self.schema, self.table) in CheckTableExists.all_tables:

@@ -250,25 +250,9 @@ def clear_all_saved_data_verify_files(context):
     run_command(context, cmd)
 
 def get_table_data_to_file(filename, tablename, dbname):
-    table_tuple = csv_string_to_tuple(tablename, delimiter='.')
-    schema_name = ""
-    if len(table_tuple) == 2:
-        schema_name, table_name = table_tuple
-    else:
-        table_name = table_tuple
+    schema_name, table_name = __get_schema_and_table_tuple(tablename)
     current_dir = os.getcwd()
     filename = os.path.join(current_dir, './gppylib/test/data', filename)
-    # order_sql = """
-    #                 select string_agg(a::text, ',')
-    #                     from (
-    #                         select generate_series(1,c.relnatts+1) as a
-    #                             from pg_class as c
-    #                                 inner join pg_namespace as n
-    #                                 on c.relnamespace = n.oid
-    #                             where (n.nspname || '.' || c.relname = E'%s')
-    #                                 or c.relname = E'%s'
-    #                     ) as q;
-    #             """ % (pg.escape_string(tablename), pg.escape_string(tablename))
     order_sql = """
                     select string_agg(a::text, ',')
                         from (
