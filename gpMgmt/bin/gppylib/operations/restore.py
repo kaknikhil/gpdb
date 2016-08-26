@@ -39,16 +39,16 @@ def update_ao_stat_func(conn, ao_schema, ao_table, counter, batch_size):
         conn.commit()
 
 def generate_restored_tables(results, restored_tables, restored_schema, restore_all):
-    restored_ao_tables = []
+    restored_ao_tables = set()
 
     for (sch, tbl) in results:
         if restore_all:
-            restored_ao_tables.append([sch, tbl])
+            restored_ao_tables.add((sch, tbl))
         elif sch in restored_schema:
-            restored_ao_tables.append([sch, tbl])
+            restored_ao_tables.add((sch, tbl))
         else:
-            if [sch, tbl] in restored_tables and [sch, tbl] not in restored_ao_tables:
-                restored_ao_tables.append([sch, tbl])
+            if (sch, tbl) in restored_tables and (sch, tbl) not in restored_ao_tables:
+                restored_ao_tables.add((sch, tbl))
 
     return restored_ao_tables
 
