@@ -177,13 +177,20 @@ def expand_partitions_and_populate_filter_file(dbname, partition_list, file_pref
             dump_partition_list.append(pt)
     return create_temp_csv_file_from_list(dump_partition_list, file_prefix)
 
-def get_all_parent_tables(dbname):
+def get_all_parent_schemas_and_tables(dbname):
     SQL = "SELECT DISTINCT schemaname, tablename FROM pg_partitions"
-    data = []
+    parent_schema_table_set = set()
     with dbconn.connect(dbconn.DbURL(dbname=dbname)) as conn:
         curs = dbconn.execSQL(conn, SQL)
-        data = curs.fetchall()
-    return data
+        parent_schema_tables_qry_result = curs.fetchall()
+
+    if not parent_schema_tables_qry_result:
+        return parent_schema_table_set
+
+    for schema_table in parent_schema_tables_qry_result:
+        parent_schema_table_set.add((schema_table[0], schema_table[1]))
+
+    return parent_schema_table_set
 
 def list_to_quoted_string(filter_tables):
     filter_string = "(" + "), (".join(["'%s','%s'" % (pg.escape_string(s), pg.escape_string(t)) for (s,t) in filter_tables]) + ")"
@@ -223,10 +230,9 @@ def expand_partition_tables(dbname, filter_tables):
     non_parent_tables = list()
     expanded_list = list()
 
-    all_parent_tables = get_all_parent_tables(dbname)
+    all_parent_tables = get_all_parent_schemas_and_tables(dbname)
     for table in filter_tables:
-        table = list(table)
-        if table in all_parent_tables:
+        if table in all_parent_tables:#table =('public', 't1'),
             parent_tables.append(table)
         else:
             non_parent_tables.append(table)

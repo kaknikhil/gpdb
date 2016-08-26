@@ -227,11 +227,11 @@ def validate_restore_tables_list(plan_file_contents, restore_tables, restore_sch
     if restore_tables is None:
         return
 
-    table_set = []
+    table_set = set()
 
     for ts, table_list in plan_file_contents:
         for table in table_list:
-            table_set.append(table)
+            table_set.add(table)
 
     invalid_tables = []
     for table in restore_tables:

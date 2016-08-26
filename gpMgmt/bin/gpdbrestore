@@ -98,9 +98,9 @@ class GpdbRestore(Operation):
         if self.context.table_file:
             self.context.restore_tables = get_restore_tables_from_table_file(self.context.table_file)
         else:
-            restore_tables = []
+            restore_tables = set()
             for table in self.context.restore_tables:
-                restore_tables.append(tablename_to_tuple(table))
+                restore_tables.add(tablename_to_tuple(table))
             self.context.restore_tables = restore_tables
 
         if self.context.db_host_path:
