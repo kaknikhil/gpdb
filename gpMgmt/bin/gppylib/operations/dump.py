@@ -1208,7 +1208,8 @@ class UpdateHistoryTable(Operation):
 
         translate_rc_to_msg = {0: "COMPLETED", 1: "WARNING", 2: "FATAL"}
         exit_msg = translate_rc_to_msg[self.pseudo_exit_status]
-        APPEND_HISTORY_TABLE = """ insert into %s values (now(), '%s', '%s', '%s', '%s', %d, %d, '%s'); """ % (UpdateHistoryTable.HISTORY_TABLE, self.time_start, self.time_end, self.options_list, self.timestamp, self.dump_exit_status, self.pseudo_exit_status, exit_msg)
+        options = pg.escape_string(self.options_list)
+        APPEND_HISTORY_TABLE = """ insert into %s values (now(), '%s', '%s', '%s', '%s', %d, %d, '%s'); """ % (UpdateHistoryTable.HISTORY_TABLE, self.time_start, self.time_end, options, self.timestamp, self.dump_exit_status, self.pseudo_exit_status, exit_msg)
         conn = None
         try:
             dburl = dbconn.DbURL(port=self.context.master_port, dbname=self.context.dump_database)
