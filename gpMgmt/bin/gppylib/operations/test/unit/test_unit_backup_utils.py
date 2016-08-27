@@ -1128,7 +1128,7 @@ class BackupUtilsTestCase(unittest.TestCase):
 
     def test_tablename_list_to_tuple_list_default(self):
         table_list = ['public.foo', 'public.bar']
-        expected = [['public', 'foo'], ['public', 'bar']]
+        expected = [('public', 'foo'), ('public', 'bar')]
         results = tablename_list_to_tuple_list(table_list)
         self.assertEqual(expected, results)
 
@@ -1153,7 +1153,7 @@ class BackupUtilsTestCase(unittest.TestCase):
 
     def test_tablename_list_to_tuple_list_special_chars(self):
         table_list = ['public."foo!$""\t\n,."', 'public.bar']
-        expected = [['public', 'foo!$"\t\n,.'], ['public', 'bar']]
+        expected = [('public', 'foo!$"\t\n,.'), ('public', 'bar')]
         results = tablename_list_to_tuple_list(table_list)
         self.assertEqual(expected, results)
 
@@ -1335,7 +1335,7 @@ class BackupUtilsTestCase(unittest.TestCase):
         fake_context = Mock()
         fake_context.ddboost = True
         filename = '/tmp/testfile'
-        expected = [['public', 'foo'], ['public', 'bar']]
+        expected = [('public', 'foo'), ('public', 'bar')]
         results = get_lines_from_csv_file(filename, fake_context)
         self.assertEqual(expected, results)
 

@@ -732,7 +732,7 @@ CREATE DATABASE monkey WITH TEMPLATE = template0 ENCODING = 'UTF8' OWNER = thisg
         with self.assertRaisesRegexp(Exception, 'Invalid plan file format'):
             get_plan_file_contents(self.context)
 
-    @patch('gppylib.operations.restore.get_plan_file_contents', return_value=[('20160101010101', [['public', 't1'], ['public', 't2']]), ('20160101010111', [['public', 't3'], ['public', 't4']]), ('20160101121210', [['public', 't5'], ['public', 't6'], ['public', 't7']])])
+    @patch('gppylib.operations.restore.get_plan_file_contents', return_value=[('20160101010101', [('public', 't1'), ('public', 't2')]), ('20160101010111', [('public', 't3'), ('public', 't4')]), ('20160101121210', [('public', 't5'), ('public', 't6'), ('public', 't7')])])
     @patch('gppylib.operations.restore.Command.run')
     @patch('gppylib.operations.restore.update_ao_statistics')
     def test_restore_incremental_data_only_default(self, mock1, mock2, mock3):
@@ -866,13 +866,13 @@ CREATE DATABASE monkey WITH TEMPLATE = template0 ENCODING = 'UTF8' OWNER = thisg
                 self.assertEqual(call(table), result.write.call_args_list[i])
 
     def test_validate_restore_tables_list_default(self):
-        plan_file_contents = [('20160101121213', [['public', 't1']]), ('20160101010101', [['public', 't2'], ['public', 't3']]), ('20160101010101', [['public', 't4']])]
-        restore_tables = [['public', 't1'], ['public', 't2']]
+        plan_file_contents = [('20160101121213', [('public', 't1')]), ('20160101010101', [('public', 't2'), ('public', 't3')]), ('20160101010101', [('public', 't4')])]
+        restore_tables = [('public', 't1'), ('public', 't2')]
         validate_restore_tables_list(plan_file_contents, restore_tables)
 
     def test_validate_restore_tables_list_invalid_tables(self):
-        plan_file_contents = [('20160101121213', [['public', 't1']]), ('20160101010101', [['public', 't2'], ['public', 't3']]), ('20160101010101', [['public', 't4']])]
-        restore_tables = [['public', 't5'], ['public', 't2']]
+        plan_file_contents = [('20160101121213', [('public', 't1')]), ('20160101010101', [('public', 't2'), ('public', 't3')]), ('20160101010101', [('public', 't4')])]
+        restore_tables = [('public', 't5'), ('public', 't2')]
         with self.assertRaisesRegexp(Exception, 'Invalid tables for -T option: The following tables were not found in plan file'):
             validate_restore_tables_list(plan_file_contents, restore_tables)
 
@@ -950,28 +950,28 @@ CREATE DATABASE monkey WITH TEMPLATE = template0 ENCODING = 'UTF8' OWNER = thisg
         update_ao_statistics(self.context, restored_tables=[], restored_schema=[], restore_all=True)
 
     def test_generate_restored_tables_no_table(self):
-        results = [['public','t1'], ['public','t2'], ['foo', 'bar']]
+        results = [('public','t1'), ('public','t2'), ('foo', 'bar')]
 
-        tables = generate_restored_tables(results, restored_tables=[], restored_schema=[], restore_all=False)
-        self.assertEqual(tables, [])
+        tables = generate_restored_tables(results, restored_tables=set([]), restored_schema=set([]), restore_all=False)
+        self.assertEqual(tables, set([]))
 
     def test_generate_restored_tables_specified_table(self):
-        results = [['public','t1'], ['public','t2'], ['foo', 'bar']]
+        results = [('public','t1'), ('public','t2'), ('foo', 'bar')]
 
-        tables = generate_restored_tables(results, restored_tables=[['public', 't1']], restored_schema=[], restore_all=False)
-        self.assertEqual(tables, [['public','t1']])
+        tables = generate_restored_tables(results, restored_tables=[('public', 't1')], restored_schema=[], restore_all=False)
+        self.assertEqual(tables, set([('public','t1')]))
 
     def test_generate_restored_tables_specified_schema(self):
-        results = [['public','t1'], ['public','t2'], ['foo', 'bar']]
+        results = [('public','t1'), ('public','t2'), ('foo', 'bar')]
 
         tables = generate_restored_tables(results, restored_tables=[], restored_schema=['public'], restore_all=False)
-        self.assertEqual(tables, [['public','t1'], ['public', 't2']])
+        self.assertEqual(tables, set([('public','t1'), ('public', 't2')]))
 
     def test_generate_restored_tables_full_restore(self):
-        results = [['public','t1'], ['public','t2'], ['foo', 'bar']]
+        results = [('public','t1'), ('public','t2'), ('foo', 'bar')]
 
-        tables = generate_restored_tables(results, restored_tables=[], restored_schema=[], restore_all=True)
-        self.assertEqual(tables, [['public','t1'], ['public', 't2'], ['foo', 'bar']])
+        tables = generate_restored_tables(results, restored_tables=set([]), restored_schema=set([]), restore_all=True)
+        self.assertEqual(tables, set([('public','t1'), ('public', 't2'), ('foo', 'bar')]))
 
     @patch('gppylib.operations.restore.dbconn.connect')
     @patch('gppylib.db.dbconn.execSQLForSingleton', return_value=5)
