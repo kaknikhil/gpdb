@@ -368,7 +368,7 @@ def check_table_exists(context, dbname, table_name, table_type=None, host=None, 
         SQL = """
               select c.oid, c.relkind, c.relstorage, c.reloptions
               from pg_class c, pg_namespace n
-                   where c.relname = '{0}');
+                   where c.relname = '{0}';
               """.format(pg.escape_string(tablename))
 
 

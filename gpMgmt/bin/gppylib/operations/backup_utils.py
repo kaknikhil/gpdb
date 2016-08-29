@@ -217,7 +217,13 @@ def convert_parents_to_leaves(dbname, parents):
     partition_sql = partition_leaves_sql % list_to_quoted_string(parents)
     curs = dbconn.execSQL(conn, partition_sql)
     rows = curs.fetchall()
-    return rows 
+
+    partition_leaves = []
+
+    for row in rows:
+        partition_leaves.append((row[0], row[1]))
+
+    return partition_leaves
 
 
 #input: list of tables to be filtered
