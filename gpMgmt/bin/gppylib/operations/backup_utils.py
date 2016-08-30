@@ -543,7 +543,7 @@ def write_lines_to_csv_file(filename, lines, delimiter='.', alwaysquote=False):
         should_quote = csv.QUOTE_ALL if alwaysquote else csv.QUOTE_MINIMAL
         writer = csv.writer(fp, delimiter=delimiter, quotechar='"', lineterminator='\n', quoting=should_quote)
         for line in lines:
-            writer.writerow(line)
+            writer.writerow(list(line))
 
 def verify_lines_in_file(fname, expected):
     lines = get_lines_from_file(fname)

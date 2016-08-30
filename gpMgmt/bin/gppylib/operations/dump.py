@@ -575,7 +575,7 @@ class DumpDatabase(Operation):
             partitions = get_user_table_list(self.context)
             tables = []
             for p in partitions:
-                if p not in filters:
+                if tuple(p) not in filters:
                     tables.append(p)
             write_lines_to_csv_file(filter_name, tables)
             if self.context.netbackup_service_host:

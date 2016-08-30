@@ -581,7 +581,7 @@ class RestoreDatabase(Operation):
                     if matches:
                         schema, table = matches.group(1), matches.group(2)
                         tablename = tuple_to_tablename((schema, table))
-                        if len(self.context.restore_tables) == 0 or [schema,table] in self.context.restore_tables:
+                        if len(self.context.restore_tables) == 0 or (schema,table) in self.context.restore_tables:
                             try:
                                 new_oid = relids[tablename]
                                 print_toggle = True
