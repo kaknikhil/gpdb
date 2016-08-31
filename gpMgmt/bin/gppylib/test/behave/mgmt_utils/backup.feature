@@ -3086,18 +3086,19 @@ Feature: Validate command line arguments
         And the user runs "psql -f gppylib/test/behave/mgmt_utils/steps/data/special_chars/create_special_schema.sql template1"
         And the user runs "psql -f gppylib/test/behave/mgmt_utils/steps/data/special_chars/create_special_table.sql template1"
         And the user runs "psql -f gppylib/test/behave/mgmt_utils/steps/data/special_chars/insert_into_special_table.sql template1"
-        And there is a list of files "ao,heap" of tables "" S`~@#$%^&*()-+[{]}|\;: \'"/?><1 "." ao_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 "," S`~@#$%^&*()-+[{]}|\;: \'"/?><1 "." heap_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 "" in " DB`~@#$%^&*()_-+[{]}|\;: \'/?><;1 " exists for validation
+        And there is a list of files "ao,heap" of tables " S`~@#$%^&*()-+[{]}|\;: \'"/?><1 . ao_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 , S`~@#$%^&*()-+[{]}|\;: \'"/?><1 . heap_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 " in " DB`~@#$%^&*()_-+[{]}|\;: \'/?><;1 " exists for validation
         When the user runs command "gpcrondump -a -x " DB\`~@#\$%^&*()_-+[{]}|\\;: \\'/?><;1 " -T " S\`~@#\$%^&*()-+[{]}|\\;: \\'\"/?><1 "." co_T\`~@#\$%^&*()-+[{]}|\\;: \\'\"/?><1 ""
         Then gpcrondump should return a return code of 0
         And the timestamp from gpcrondump is stored
         And the user runs gpdbrestore with the stored timestamp
         And gpdbrestore should return a return code of 0
-        And verify with backedup file "ao" that there is a "ao" table "" S`~@#$%^&*()-+[{]}|\;: \'""/?><1 "." ao_T`~@#$%^&*()-+[{]}|\;: \'""/?><1 "" in " DB`~@#$%^&*()_-+[{]}|\;: \'/?><;1 " with data
-        And verify with backedup file "heap" that there is a "heap" table "" S`~@#$%^&*()-+[{]}|\;: \'""/?><1 "." heap_T`~@#$%^&*()-+[{]}|\;: \'""/?><1 "" in " DB`~@#$%^&*()_-+[{]}|\;: \'/?><;1 " with data
+        And verify with backedup file "ao" that there is a "ao" table " S`~@#$%^&*()-+[{]}|\;: \'"/?><1 . ao_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 " in " DB`~@#$%^&*()_-+[{]}|\;: \'/?><;1 " with data
+        And verify with backedup file "heap" that there is a "heap" table " S`~@#$%^&*()-+[{]}|\;: \'"/?><1 . heap_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 " in " DB`~@#$%^&*()_-+[{]}|\;: \'/?><;1 " with data
         And verify that there is no table " co_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 " in " DB`~@#$%^&*()_-+[{]}|\;: \'/?><;1 "
         And the user runs command "dropdb " DB\`~@#\$%^&*()_-+[{]}|\\;: \\'/?><;1 ""
 
     @spl_char
+    @spl_char_5
     Scenario: gpcrondump with --exclude-table-file option where table name, schema name and database name contains special character
         Given the test is initialized
         And the user runs "psql -f gppylib/test/behave/mgmt_utils/steps/data/special_chars/create_special_database.sql template1"

@@ -1231,6 +1231,12 @@ class BackupUtilsTestCase(unittest.TestCase):
         results = csv_string_to_tuple(csv_string)
         self.assertEqual(expected, results)
 
+    def test_csv_string_to_list_special_chars_dot_delimiter(self):
+        csv_string = '" S`~@#$%^&*()-+[{]}|\;: \'""/?><1 "." ao_T`~@#$%^&*()-+[{]}|\;: \'""/?><1 "'
+        expected = (' S`~@#$%^&*()-+[{]}|\;: \'"/?><1 ',' ao_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 ')
+        results = csv_string_to_tuple(csv_string,delimiter='.',terminator='')
+        self.assertEqual(expected, results)
+
     def test_list_to_csv_string_special_chars_no_delimiter_or_terminator_or_quotechar(self):
         csv_string = 'public,foo!$\t.\n'
         expected = ('public', 'foo!$\t.')
