@@ -495,6 +495,7 @@ Feature: Validate command line arguments
         And there is a "ao" table "public.ao_index_table" in "bkdb" with data
         When the user runs "gpcrondump -a -x bkdb -b"
         Then gpcrondump should return a return code of 0
+        And gpcrondump should print Inserted dump record into public.gpcrondump_history to stdout
         And gpcrondump should print Bypassing disk space check to stdout
         And gpcrondump should not print Validating disk space to stdout
         And table "public.ao_index_table" is assumed to be in dirty state in "bkdb"
@@ -3108,6 +3109,7 @@ Feature: Validate command line arguments
         And there is a list of files "ao,heap" of tables " S`~@#$%^&*()-+[{]}|\;: \'"/?><1 . ao_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 , S`~@#$%^&*()-+[{]}|\;: \'"/?><1 . heap_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 " in " DB`~@#$%^&*()_-+[{]}|\;: \'/?><;1 " exists for validation
         When the user runs command "gpcrondump -a -x " DB\`~@#\$%^&*()_-+[{]}|\\;: \\'/?><;1 " --exclude-table-file gppylib/test/behave/mgmt_utils/steps/data/special_chars/exclude-table-file.txt"
         Then gpcrondump should return a return code of 0
+        And gpcrondump should print Inserted dump record into public.gpcrondump_history to stdout
         And the timestamp from gpcrondump is stored
         And the user runs gpdbrestore with the stored timestamp
         And gpdbrestore should return a return code of 0
