@@ -366,9 +366,8 @@ def check_table_exists(context, dbname, table_name, table_type=None, host=None, 
               """.format(pg.escape_string(schemaname), pg.escape_string(tablename))
     else:
         SQL = """
-              select c.oid, c.relkind, c.relstorage, c.reloptions
-              from pg_class c, pg_namespace n
-                   where c.relname = '{0}';
+              select oid, relkind, relstorage, reloptions
+              from pg_class where relname = '{0}';
               """.format(pg.escape_string(tablename))
 
 
