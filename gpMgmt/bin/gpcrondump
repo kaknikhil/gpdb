@@ -1067,16 +1067,6 @@ class GpCronDump(Operation):
         for table in tables:
             logger.info('%s' % tuple_to_tablename(table))
 
-    def _get_table_names_from_partition_list(self, partition_list):
-        tablenames = []
-        for part in partition_list:
-            fields = csv_string_to_tuple(part)
-            if len(fields) != 3:
-                raise Exception('Invalid partition entry "%s"' % part)
-            tname = tuple_to_tablename(fields[0:2])
-            tablenames.append(tname)
-        return tablenames
-
     def _prompt_continue(self):
         logger.info("---------------------------------------------------")
         logger.info("Master Greenplum Instance dump parameters")

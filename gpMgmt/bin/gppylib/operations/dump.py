@@ -535,7 +535,7 @@ class DumpDatabase(Operation):
             self.create_filter_file()
 
         # Format sql strings for all schema and table names
-        self.context.schema_file = formatSQLString(self.context.schema_file)
+        self.context.schema_file = format_schema_file(self.context.schema_file)
 
         if self.context.incremental and self.context.dump_prefix and get_filter_file(self.context):
             filtered_dump_line = self.create_filtered_dump_string()

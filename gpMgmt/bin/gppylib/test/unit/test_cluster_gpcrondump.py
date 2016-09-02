@@ -636,21 +636,6 @@ class GpcrondumpTestCase(unittest.TestCase):
             cron = GpCronDump(self.options, None)
 
     @patch('gpcrondump.validate_current_timestamp')
-    def test_get_table_names_from_partition_list_00(self, mock1):
-        cron = GpCronDump(self.options, None)
-        partition_list = ['public,aot1,2190', 'public,aot2:aot,3190']
-        expected_output = ['public.aot1', 'public.aot2:aot']
-        result = cron._get_table_names_from_partition_list(partition_list)
-        self.assertEqual(result, expected_output)
-
-    @patch('gpcrondump.validate_current_timestamp')
-    def test_get_table_names_from_partition_list_01(self, mock1):
-        cron = GpCronDump(self.options, None)
-        partition_list = ['public, aot1, 2190', 'public, aot2,aot, 3190']
-        with self.assertRaisesRegexp(Exception, 'Invalid partition entry "public, aot2,aot, 3190"'):
-            cron._get_table_names_from_partition_list(partition_list)
-
-    @patch('gpcrondump.validate_current_timestamp')
     def test_options_table_filter1(self, mock):
         self.options.include_dump_tables = 'foo'
         self.options.include_dump_tables_file = 'foo'

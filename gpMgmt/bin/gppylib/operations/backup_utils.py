@@ -170,33 +170,52 @@ class Context(Values, object):
         self.timestamp_object = datetime(year, month, day, hours, minutes, seconds)
 
 def expand_partitions_and_populate_filter_file(dbname, partition_list, file_prefix):
+    """
+
+    :param dbname: database name in string format
+    :param partition_list: list of schemas and tables in tuple format [('public', 'sales'), ('public', 'foo'),]
+    :param file_prefix: file prefix
+    :return: file path of the csv that contains the filtered list
+    """
     expanded_partitions = expand_partition_tables(dbname, partition_list)
-    dump_partition_list = []
+    dump_partition_list = set()
     for pt in expanded_partitions + partition_list:
         if pt not in dump_partition_list:
-            dump_partition_list.append(pt)
+            dump_partition_list.add(pt)
     return create_temp_csv_file_from_list(dump_partition_list, file_prefix)
 
-def get_all_parent_schemas_and_tables(dbname):
+def get_all_parent_partition_schemas_and_tables(dbname):
     SQL = "SELECT DISTINCT schemaname, tablename FROM pg_partitions"
-    parent_schema_table_set = set()
+    parent_partitions = set()
     with dbconn.connect(dbconn.DbURL(dbname=dbname)) as conn:
         curs = dbconn.execSQL(conn, SQL)
         parent_schema_tables_qry_result = curs.fetchall()
 
     if not parent_schema_tables_qry_result:
-        return parent_schema_table_set
+        return parent_partitions
 
     for schema_table in parent_schema_tables_qry_result:
-        parent_schema_table_set.add((schema_table[0], schema_table[1]))
+        parent_partitions.add((schema_table[0], schema_table[1]))
 
-    return parent_schema_table_set
+    return parent_partitions
 
 def list_to_quoted_string(filter_tables):
+    """
+
+    :param filter_tables: list of schemas and tables in tuple format [('public', 'sales'), ('public', 'foo')]
+    :return: quoted string of schemas and tables  "('public','sales'), ('public','foo')"
+    """
     filter_string = "(" + "), (".join(["'%s','%s'" % (pg.escape_string(s), pg.escape_string(t)) for (s,t) in filter_tables]) + ")"
     return filter_string
 
 def convert_parents_to_leaves(dbname, parents):
+    """
+
+    :param dbname: database name in string format
+    :param parents: list of schemas and tables in tuple format [('public', 'sales'), ('public', 'foo')]
+    :return : list of partition leaves(schemas and tables) in tuple format [('public', 'sales'), ('public', 'foo')]
+    """
+
     partition_leaves_sql = """
                            SELECT x.partitionschemaname, x.partitiontablename
                            FROM (
@@ -226,9 +245,13 @@ def convert_parents_to_leaves(dbname, parents):
     return partition_leaves
 
 
-#input: list of tables to be filtered
-#output: same list but parent tables converted to leafs
 def expand_partition_tables(dbname, filter_tables):
+    """
+
+    :param dbname:
+    :param filter_tables: list of schemas and tables to be filtered in tuple format [('public', 'sales'), ('public', 'foo')]
+    :return: same list but parent tables converted to leaves
+    """
 
     if not filter_tables or len(filter_tables) == 0:
         return filter_tables
@@ -236,7 +259,7 @@ def expand_partition_tables(dbname, filter_tables):
     non_parent_tables = list()
     expanded_list = list()
 
-    all_parent_tables = get_all_parent_schemas_and_tables(dbname)
+    all_parent_tables = get_all_parent_partition_schemas_and_tables(dbname)
     for table in filter_tables:
         if table in all_parent_tables:#table =('public', 't1'),
             parent_tables.append(table)
@@ -480,8 +503,11 @@ def write_lines_to_file(filename, lines):
         for line in lines:
             fp.write("%s\n" % line.strip('\n'))
 
-# Takes a list of "schema.table" strings and turns it into a list of ("schema", "table") tuples
 def tablename_list_to_tuple_list(table_list):
+    """
+    :param table_list: list of "schema.table" strings
+    :return: list of ("schema", "table") tuples
+    """
     content = []
     tables = "\n".join(table_list)
     sio = StringIO.StringIO(tables)
@@ -496,6 +522,10 @@ def tablename_list_to_tuple_list(table_list):
         sio.close()
 
 def list_to_csv_string(items, delimiter=',', terminator='\n'):
+    """
+    :param items: list of strings ['public', 'foo']
+    :return:'public,foo\n'
+    """
     csv_string = StringIO.StringIO()
     try:
         writer = csv.writer(csv_string, delimiter=delimiter, quotechar='"', lineterminator=terminator)
@@ -504,8 +534,12 @@ def list_to_csv_string(items, delimiter=',', terminator='\n'):
     finally:
         csv_string.close()
 
-# Should only be used for single-line strings, e.g. 'schema.table'
 def csv_string_to_tuple(line, delimiter=',', terminator='\n'):
+    """
+    # Should only be used for single-line strings, e.g. 'schema.table'
+    :param line: single-line string e.g. 'schema.table'
+    :return: ('schema','table')
+    """
     sio = StringIO.StringIO(line)
     try:
         reader = csv.reader(sio, delimiter=delimiter, quotechar='"', lineterminator=terminator)
@@ -527,6 +561,10 @@ def tablename_to_tuple(tablename):
     return table_tuple
 
 def get_lines_from_csv_file(fname, context=None, delimiter='.'):
+    """
+    :param fname: csv file path
+    :return: list of ('schema','table') tuples
+    """
     content = []
     if context and context.ddboost:
         contents = get_lines_from_dd_file(fname, context.ddboost_storage_unit)
@@ -539,6 +577,11 @@ def get_lines_from_csv_file(fname, context=None, delimiter='.'):
         return content
 
 def write_lines_to_csv_file(filename, lines, delimiter='.', alwaysquote=False):
+    """
+
+    :param filename: csv file path
+    :param lines: lines to write to the csv file
+    """
     with open(filename, 'w') as fp:
         should_quote = csv.QUOTE_ALL if alwaysquote else csv.QUOTE_MINIMAL
         writer = csv.writer(fp, delimiter=delimiter, quotechar='"', lineterminator='\n', quoting=should_quote)
@@ -919,30 +962,20 @@ def removeEscapingDoubleQuoteInSQLString(string, forceDoubleQuote=True):
         string = '"' + string + '"'
     return string
 
-def quote_special_chars_in_table_list(table_list):
-    new_list = []
-    for schema, table in table_list:
-        if not re.match('^[\w_-]+$', schema):
-            schema = checkAndAddEnclosingDoubleQuote(schema)
-        if not re.match('^[\w_-]+$', table):
-            table = checkAndAddEnclosingDoubleQuote(table)
-        new_list.append([schema, table])
-    return new_list
-
-def formatSQLString(rel_file):
+def format_schema_file(schema_file):
     """
     Read the schema name and escape the double quote inside the name properly.
     """
-    relnames = []
-    if rel_file and os.path.exists(rel_file):
-        with open(rel_file, 'r') as fr:
+    schemanames = []
+    if schema_file and os.path.exists(schema_file):
+        with open(schema_file, 'r') as fr:
             lines = fr.read().strip('\n').split('\n')
             for line in lines:
                     schema = escapeDoubleQuoteInSQLString(line)
-                    relnames.append(schema)
-        if len(relnames) > 0:
-            write_lines_to_file(rel_file, relnames)
-            return rel_file
+                    schemanames.append(schema)
+        if len(schemanames) > 0:
+            write_lines_to_file(schema_file, schemanames)
+            return schema_file
 
 def quote_csv_file(filename):
     lines = get_lines_from_csv_file(filename)
