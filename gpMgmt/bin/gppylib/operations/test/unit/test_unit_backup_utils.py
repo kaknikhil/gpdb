@@ -1249,6 +1249,12 @@ class BackupUtilsTestCase(unittest.TestCase):
         results = tuple_to_tablename(tuple)
         self.assertEqual(expected, results)
 
+    def test_tuple_to_tablename_with_tuple(self):
+        tuple = ('public', 'foo')
+        expected = 'public.foo'
+        results = tuple_to_tablename(tuple)
+        self.assertEqual(expected, results)
+
     def test_tuple_to_tablename_no_schemas(self):
         tuple = ['foo']
         with self.assertRaisesRegexp(Exception, 'not in the format schema.table'):
