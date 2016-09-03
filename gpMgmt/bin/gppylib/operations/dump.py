@@ -485,13 +485,16 @@ def get_filter_file(context):
         return None
 
 def update_filter_file_with_dirty_list(filter_file, dirty_tables):
-    filter_list = []
+    """
+    :param dirty_tables: list of dirty tables in tuple (schema, table) format
+    :return:
+    """
     if filter_file:
-        filter_list = get_lines_from_csv_file(filter_file)
+        filter_list = set(get_lines_from_csv_file(filter_file))
 
         for table in dirty_tables:
             if table not in filter_list:
-                filter_list.append(table)
+                filter_list.add(table)
 
         write_lines_to_csv_file(filter_file, filter_list)
 
@@ -599,7 +602,7 @@ class DumpDatabase(Operation):
             if self.context.netbackup_service_host:
                 backup_file_with_nbu(self.context, path=filter_name)
         elif self.context.exclude_dump_tables_file:
-            filters = get_lines_from_csv_file(self.context.exclude_dump_tables_file)
+            filters = set(get_lines_from_csv_file(self.context.exclude_dump_tables_file))
             partitions = get_user_table_list(self.context)
             tables = []
             for p in partitions:
@@ -1122,20 +1125,19 @@ class ValidateExcludeTargets(Operation):
                 raise ExceptionNoStackTraceNeeded("Can't open file %s" % self.context.exclude_dump_tables_file)
             dump_tables = get_lines_from_csv_file(self.context.exclude_dump_tables_file)
 
-        for dump_table in dump_tables:
-            tablename = tuple_to_tablename(dump_table)
-            schema, table = dump_table
+        for dump_table_tuple in dump_tables:
+            schema, table = dump_table_tuple
             exists = CheckTableExists(self.context, schema, table).run()
             if exists:
                 if self.context.dump_schema:
                     for dump_schema in self.context.dump_schema:
                         if dump_schema != schema:
-                            logger.info("Adding table %s to exclude list" % dump_table)
-                            rebuild_excludes.append((schema, table))
+                            logger.info("Adding table %s to exclude list" % dump_table_tuple)
+                            rebuild_excludes.append(dump_table_tuple)
                         else:
-                            logger.warn("Schema dump request and exclude table %s in that schema, ignoring" % dump_table)
+                            logger.warn("Schema dump request and exclude table %s in that schema, ignoring" % dump_table_tuple)
             else:
-                logger.warn("Exclude table %s does not exist in %s database, ignoring" % (dump_table, self.context.dump_database))
+                logger.warn("Exclude table %s does not exist in %s database, ignoring" % (dump_table_tuple, self.context.dump_database))
         if len(rebuild_excludes) == 0:
             logger.warn("All exclude table names have been removed due to issues, see log file")
         return self.context.exclude_dump_tables
@@ -1547,10 +1549,13 @@ class DumpStats(Operation):
 
         include_tables = []
         if self.context.exclude_dump_tables_file:
-            exclude_tables = get_lines_from_csv_file(self.context.exclude_dump_tables_file)
+            # exclude_tables = set(get_lines_from_csv_file(self.context.exclude_dump_tables_file))
+            exclude_tables = set(get_lines_from_csv_file(self.context.exclude_dump_tables_file))
             user_tables = get_user_table_list(self.context)
+            user_tables = convert_list_of_list_to_list_of_tuples(user_tables)
             include_tables = []
             for table in user_tables:
+                #TODO : add a unit test for this
                 if table not in exclude_tables:
                     include_tables.append(table)
         elif self.context.include_dump_tables_file:
@@ -1559,14 +1564,15 @@ class DumpStats(Operation):
             include_schemas = get_lines_from_file(self.context.schema_file)
             for schema in include_schemas:
                 user_tables = get_user_table_list_for_schema(self.context, schema)
-                tables = []
-                for table in user_tables:
-                    tables.append(table)
-                include_tables.extend(tables)
+                # tables = []
+                # for table in user_tables:
+                #     tables.append(table)
+                include_tables.extend(user_tables)
         else:
-            user_tables = get_user_table_list(self.context)
-            for table in user_tables:
-                include_tables.append(table)
+             include_tables = get_user_table_list(self.context)
+            # user_tables = get_user_table_list(self.context)
+            # for table in user_tables:
+            #     include_tables.append(table)
 
         with open(self.stats_filename, "w") as outfile:
             outfile.write("""--

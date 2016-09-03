@@ -732,7 +732,7 @@ class DumpTestCase(unittest.TestCase):
             self.assertEqual(len(dirty_tables), len(result.write.call_args_list))
             for i in range(len(dirty_tables)):
                 table = "%s.%s\n" % dirty_tables[i]
-                self.assertEqual(call(table), result.write.call_args_list[i])
+                self.assertIn(call(table), result.write.call_args_list)
 
     @patch('gppylib.operations.backup_utils.get_lines_from_file', return_value=[('public', 't1'), ('public', 't2')])
     def test_update_filter_file_with_dirty_list_duplicates(self, mock1):
@@ -759,7 +759,7 @@ class DumpTestCase(unittest.TestCase):
             self.assertEqual(len(dirty_tables), len(result.write.call_args_list))
             for i in range(len(dirty_tables)):
                 table = "%s.%s\n" % dirty_tables[i]
-                self.assertEqual(call(table), result.write.call_args_list[i])
+                self.assertIn(call(table), result.write.call_args_list)
 
     @patch('gppylib.operations.dump.get_lines_from_csv_file', return_value=[('public', 't1'), ('testschema', 't2')])
     @patch('gppylib.operations.dump.get_latest_full_dump_timestamp', return_value='20130101010101')

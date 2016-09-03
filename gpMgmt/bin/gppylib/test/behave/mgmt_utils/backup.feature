@@ -2978,12 +2978,20 @@ Feature: Validate command line arguments
         And verify that the restored table "public.heap_table" in database "bkdb" is analyzed
         And verify that the restored table "public.ao_part_table" in database "bkdb" is analyzed
 
+    @foo1
     Scenario: Backup and restore with statistics and table filters
         Given the test is initialized
         And there is a "heap" table "public.heap_table" in "bkdb" with data
         And there is a "heap" table "public.heap_index_table" in "bkdb" with data
         And there is a "ao" partition table "public.ao_part_table" in "bkdb" with data
         And the database "bkdb" is analyzed
+        When the user runs "gpcrondump -a -x bkdb --dump-stats -T public.heap_table -T public.heap_index_table"
+        And the timestamp from gpcrondump is stored
+        Then gpcrondump should return a return code of 0
+        And "statistics" file should be created under " "
+        And verify that the "statistics" file in " " dir contains "Schema: public, Table: ao_part_table"
+        And verify that the "statistics" file in " " dir does not contain "Schema: public, Table: heap_table"
+        And verify that the "statistics" file in " " dir does not contain "Schema: public, Table: heap_index_table"
         When the user runs "gpcrondump -a -x bkdb --dump-stats -t public.heap_table -t public.heap_index_table"
         And the timestamp from gpcrondump is stored
         Then gpcrondump should return a return code of 0
