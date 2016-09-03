@@ -2801,8 +2801,7 @@ Feature: Validate command line arguments
         And verify that there is a "ao" table "schema_ao.ao_part_table" in "bkdb" with data
         And verify that there is no table "testschema.heap_table" in "bkdb"
 
-    @wip
-    Scenario: Incremental Backup and Restore with -s filter for Full
+    Scenario: Incremental Backup with altered partition and filter option should modify the filter file with the newly added partition
         Given the test is initialized
         And the prefix "foo" is stored
         And there is a list to store the incremental backup timestamps
@@ -2811,23 +2810,19 @@ Feature: Validate command line arguments
         And there is a "heap" table "testschema.heap_table" in "bkdb" with data
         And there is a "ao" table "schema_ao.ao_index_table" in "bkdb" with data
         And there is a "ao" partition table "schema_ao.ao_part_table" in "bkdb" with data
-        When the user runs "gpcrondump -a -x bkdb --prefix=foo -s schema_ao -s schema_heap"
+        And there is a table-file "/tmp/schema_file" with tables "testschema,schema_heap"
+        When the user runs "gpcrondump -a -x bkdb --prefix=foo --exclude-schema-file /tmp/schema_file"
         Then gpcrondump should return a return code of 0
         And the timestamp from gpcrondump is stored
-        And the full backup timestamp from gpcrondump is stored
         And "_schema" file should be created under " "
         And verify that the "schema" file in " " dir contains "schema_ao"
+        And partition "3" is added to partition table "schema_ao.ao_part_table" in "bkdb"
         When the user runs "gpcrondump -a -x bkdb --prefix=foo --incremental"
+        Then verify that the "filter" file in " " dir contains "schema_ao.ao_part_table_1_prt_p3"
+        Then verify that the "filter" file in " " dir contains "schema_ao.ao_part_table_1_prt_p3_2_prt_1"
+        Then verify that the "filter" file in " " dir contains "schema_ao.ao_part_table_1_prt_p3_2_prt_2"
+        Then verify that the "filter" file in " " dir contains "schema_ao.ao_part_table_1_prt_p3_2_prt_3"
         Then gpcrondump should return a return code of 0
-        And the timestamp from gpcrondump is stored
-        And the timestamp from gpcrondump is stored in a list
-        And all the data from "bkdb" is saved for verification
-        When the user runs gpdbrestore with the stored timestamp and options "--prefix=foo"
-        Then gpdbrestore should return a return code of 0
-        And verify that there is no table "testschema.heap_table" in "bkdb"
-        And verify that there is a "ao" table "schema_ao.ao_index_table" in "bkdb" with data
-        And verify that there is a "heap" table "schema_heap.heap_table" in "bkdb" with data
-        And verify that there is a "ao" table "schema_ao.ao_part_table" in "bkdb" with data
 
     @wip
     Scenario: Incremental Backup and Restore with --schema-file filter for Full

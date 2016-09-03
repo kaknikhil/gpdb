@@ -186,18 +186,11 @@ def expand_partitions_and_populate_filter_file(dbname, partition_list, file_pref
 
 def get_all_parent_partition_schemas_and_tables(dbname):
     SQL = "SELECT DISTINCT schemaname, tablename FROM pg_partitions"
-    parent_partitions = set()
     with dbconn.connect(dbconn.DbURL(dbname=dbname)) as conn:
         curs = dbconn.execSQL(conn, SQL)
         parent_schema_tables_qry_result = curs.fetchall()
 
-    if not parent_schema_tables_qry_result:
-        return parent_partitions
-
-    for schema_table in parent_schema_tables_qry_result:
-        parent_partitions.add((schema_table[0], schema_table[1]))
-
-    return parent_partitions
+    return convert_list_of_list_to_set_of_tuples(parent_schema_tables_qry_result)
 
 def list_to_quoted_string(filter_tables):
     """
@@ -237,13 +230,31 @@ def convert_parents_to_leaves(dbname, parents):
     curs = dbconn.execSQL(conn, partition_sql)
     rows = curs.fetchall()
 
-    partition_leaves = []
+    return convert_list_of_list_to_list_of_tuples(rows)
 
-    for row in rows:
-        partition_leaves.append((row[0], row[1]))
 
-    return partition_leaves
+def convert_list_of_list_to_list_of_tuples(list_of_list):
+    if not list_of_list:
+        return list()
 
+    list_of_tuples = list()
+
+    for l in list_of_list:
+        list_of_tuples.append((l[0], l[1]))
+
+    return list_of_tuples
+
+
+def convert_list_of_list_to_set_of_tuples(list_of_list):
+    if not list_of_list:
+        return set()
+
+    set_of_tuples = set()
+
+    for l in list_of_list:
+        set_of_tuples.add((l[0], l[1]))
+
+    return set_of_tuples
 
 def expand_partition_tables(dbname, filter_tables):
     """
@@ -523,7 +534,7 @@ def tablename_list_to_tuple_list(table_list):
 
 def list_to_csv_string(items, delimiter=',', terminator='\n'):
     """
-    :param items: list of strings ['public', 'foo']
+    :param items: list/tuple of strings ['public', 'foo']
     :return:'public,foo\n'
     """
     csv_string = StringIO.StringIO()
@@ -578,7 +589,7 @@ def get_lines_from_csv_file(fname, context=None, delimiter='.'):
 
 def write_lines_to_csv_file(filename, lines, delimiter='.', alwaysquote=False):
     """
-
+    #TODO:- change the default delimiter to ','
     :param filename: csv file path
     :param lines: lines to write to the csv file
     """

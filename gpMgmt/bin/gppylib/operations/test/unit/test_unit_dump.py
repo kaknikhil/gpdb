@@ -816,14 +816,22 @@ class DumpTestCase(unittest.TestCase):
 
     @patch('os.path.isfile', return_value=True)
     @patch('gppylib.operations.dump.get_filter_file', return_value = '/tmp/update_test')
-    @patch('gppylib.operations.dump.get_lines_from_csv_file', return_value = [['public', 'heap_table1'], ['public', 'ao_part_table'], ['public', 'ao_part_table_1_prt_p1']])
-    @patch('gppylib.operations.dump.execute_sql', side_effect = [ [['public', 'ao_part_table']], [['public', 'ao_part_table_1_prt_p1'], ['public', 'ao_part_table_1_prt_p2']] ])
-    def test_update_filter_file_default(self, mock1, mock2, mock3, mock4):
-        filter_filename = '/tmp/update_test'
-        expected_result = [['public', 'heap_table1'], ['public', 'ao_part_table'], ['public', 'ao_part_table_1_prt_p1'], ['public', 'ao_part_table_1_prt_p2']]
+    @patch('gppylib.operations.dump.get_lines_from_csv_file',
+           return_value = [('public', 'heap_table1'),
+                           ('public', 'ao_part_table'),
+                           ('public', 'ao_part_table_1_prt_p1')])
+    @patch('gppylib.operations.dump.execute_sql',
+           side_effect = [[['public', 'ao_part_table']],
+                          [['public', 'ao_part_table_1_prt_p1'],
+                           ['public', 'ao_part_table_1_prt_p2']] ])
+    def test_update_partitions_in_filter_file_default(self, mock1, mock2, mock3, mock4):
+        expected_result = [('public', 'heap_table1'),
+                           ('public', 'ao_part_table'),
+                           ('public', 'ao_part_table_1_prt_p1'),
+                           ('public', 'ao_part_table_1_prt_p2')]
         m = mock_open()
         with patch('__builtin__.open', m, create=True):
-            update_filter_file(self.context)
+            update_partitions_in_filter_file(self.context)
             result = m()
             self.assertEqual(len(expected_result), len(result.write.call_args_list))
             expected = sorted(expected_result)
@@ -834,12 +842,11 @@ class DumpTestCase(unittest.TestCase):
 
     @patch('os.path.isfile', return_value=True)
     @patch('gppylib.operations.dump.get_filter_file', return_value = '/tmp/update_test')
-    @patch('gppylib.operations.dump.get_lines_from_csv_file', return_value = [['public', 'heap_table1'], ['public', 'ao_part_table'], ['public', 'ao_part_table_1_prt_p1']])
+    @patch('gppylib.operations.dump.get_lines_from_csv_file', return_value = [('public', 'heap_table1'), ('public', 'ao_part_table'), ('public', 'ao_part_table_1_prt_p1')])
     @patch('gppylib.operations.dump.execute_sql', side_effect = [ [['public', 'ao_part_table']], [['public', 'ao_part_table_1_prt_p1'], ['public', 'ao_part_table_1_prt_p2']] ])
     @patch('gppylib.operations.dump.restore_file_with_nbu')
     @patch('gppylib.operations.dump.backup_file_with_nbu')
-    def test_update_filter_file_with_nbu(self, mock1, mock2, mock3, mock4, mock5, mock6):
-        filter_filename = '/tmp/update_test'
+    def test_update_partitions_in_filter_file_with_nbu(self, mock1, mock2, mock3, mock4, mock5, mock6):
         self.context.netbackup_service_host = "mdw"
         self.context.netbackup_policy = "nbu_policy"
         self.context.netbackup_schedule = "nbu_schedule"
@@ -847,7 +854,7 @@ class DumpTestCase(unittest.TestCase):
         expected_result = [['public', 'heap_table1'], ['public', 'ao_part_table'], ['public', 'ao_part_table_1_prt_p1'], ['public', 'ao_part_table_1_prt_p2']]
         m = mock_open()
         with patch('__builtin__.open', m, create=True):
-            update_filter_file(self.context)
+            update_partitions_in_filter_file(self.context)
             result = m()
             self.assertEqual(len(expected_result), len(result.write.call_args_list))
             expected = sorted(expected_result)

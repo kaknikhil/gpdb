@@ -1163,6 +1163,12 @@ class BackupUtilsTestCase(unittest.TestCase):
         results = list_to_csv_string(table_list)
         self.assertEqual(expected, results)
 
+    def test_list_to_csv_string_tuple(self):
+        table_list = ('public', 'foo')
+        expected = 'public,foo\n'
+        results = list_to_csv_string(table_list)
+        self.assertEqual(expected, results)
+
     def test_list_to_csv_string_more_items(self):
         table_list = ['testdb', 'public', 'foo']
         expected = 'testdb,public,foo\n'
@@ -1197,41 +1203,41 @@ class BackupUtilsTestCase(unittest.TestCase):
         results = list_to_csv_string(table_list)
         self.assertEqual(expected, results)
 
-    def test_csv_string_to_list_default(self):
+    def test_csv_string_to_tuple_default(self):
         csv_string = 'public,foo\n'
         expected = ('public', 'foo')
         results = csv_string_to_tuple(csv_string)
         self.assertEqual(expected, results)
 
-    def test_csv_string_to_list_more_tokens(self):
+    def test_csv_string_to_tuple_more_tokens(self):
         csv_string = 'testdb,public,foo\n'
         expected = ('testdb', 'public', 'foo')
         results = csv_string_to_tuple(csv_string)
         self.assertEqual(expected, results)
 
-    def test_csv_string_to_list_wrong_delimiter(self):
+    def test_csv_string_to_tuple_wrong_delimiter(self):
         csv_string = 'public.foo\n'
         expected = ('public.foo', )
         results = csv_string_to_tuple(csv_string)
         self.assertEqual(expected, results)
 
-    def test_csv_string_to_list_no_terminator(self):
+    def test_csv_string_to_tuple_no_terminator(self):
         csv_string = 'public,foo'
         expected = ('public', 'foo')
         results = csv_string_to_tuple(csv_string)
         self.assertEqual(expected, results)
 
-    def test_csv_string_to_list_empty_string(self):
+    def test_csv_string_to_tuple_empty_string(self):
         results = csv_string_to_tuple('')
         self.assertEqual((), results)
 
-    def test_csv_string_to_list_special_chars(self):
+    def test_csv_string_to_tuple_special_chars(self):
         csv_string = 'public,"foo!$""\t\n,."\n'
         expected = ('public', 'foo!$"\t\n,.')
         results = csv_string_to_tuple(csv_string)
         self.assertEqual(expected, results)
 
-    def test_csv_string_to_list_special_chars_dot_delimiter(self):
+    def test_csv_string_to_tuple_special_chars_dot_delimiter(self):
         csv_string = '" S`~@#$%^&*()-+[{]}|\;: \'""/?><1 "." ao_T`~@#$%^&*()-+[{]}|\;: \'""/?><1 "'
         expected = (' S`~@#$%^&*()-+[{]}|\;: \'"/?><1 ',' ao_T`~@#$%^&*()-+[{]}|\;: \'"/?><1 ')
         results = csv_string_to_tuple(csv_string,delimiter='.',terminator='')

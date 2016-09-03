@@ -127,11 +127,19 @@ def get_include_schema_list_from_exclude_schema(context, exclude_schema_list):
     return include_schema_list
 
 def get_ao_partition_state(context):
+    """
+    :param context:
+    :return: list of ao partitions in tuple('schema', 'table', 'no of times that the table was modified since last backup') format
+    """
     ao_partition_info = get_ao_partition_list(context)
     ao_partition_list = get_partition_state_tuples(context, 'pg_aoseg', ao_partition_info)
     return ao_partition_list
 
 def get_co_partition_state(context):
+    """
+    :param context:
+    :return: list of co partitions in tuple('schema', 'table', 'no of times that the table was modified since last backup') format
+    """
     co_partition_info = get_co_partition_list(context)
     co_partition_list = get_partition_state_tuples(context, 'pg_aoseg', co_partition_info)
     return co_partition_list
@@ -225,6 +233,14 @@ def get_last_state(context, table_type):
     return get_lines_from_csv_file(last_state_filename, delimiter=',')
 
 def compare_metadata(old_pgstatoperations, cur_pgstatoperations):
+    """
+    :param old_pgstatoperations: dict of
+                                 key   :- tuple of (oid, dml)
+                                 value :- entire operation string
+    :param cur_pgstatoperations: list of opration strings in format
+                                 'public,sales_ao_co_1_prt_1,301109,ALTER,INHERIT,2016-09-02 10:42:24.377743-07'
+    :return: set of (schema, table) that are in current operations but not in old
+    """
     diffs = set()
     for operation in cur_pgstatoperations:
         toks = csv_string_to_tuple(operation)
@@ -235,6 +251,15 @@ def compare_metadata(old_pgstatoperations, cur_pgstatoperations):
     return diffs
 
 def get_pgstatlastoperations_dict(last_operations):
+    """
+    :param last_operations: list of operations in string format
+                            'public,sales_ao_1_prt_366,333306,CREATE,TABLE,2016-09-02 10:44:06.05418-07'
+    :return :dict where
+            key   :- tuple of (oid, dml)
+            value :- entire operation string
+            e.g. {('314530', 'CREATE'): 'public,sales_ao_co_1_prt_306,314530,CREATE,TABLE,2016-09-02 10:42:26.849396-07',
+                  ('320854', 'ALTER'): 'public,sales_ao_1_prt_83,320854,ALTER,INHERIT,2016-09-02 10:44:03.398546-07'}}
+    """
     last_operations_dict = {}
     for operation in last_operations:
         toks = csv_string_to_tuple(operation)
@@ -267,6 +292,10 @@ def get_last_dump_timestamp(context):
     return timestamp
 
 def create_partition_dict(partition_list):
+    """
+    :param partition_list: [('schema1', 'table1', '100'), ('schema2', 'table2', '200')]
+    :return: {('schema1', 'table1'): '100', ('schema2', 'table2'): '200'}
+    """
     table_dict = dict()
     for partition in partition_list:
         if len(partition) != 3:
@@ -412,25 +441,24 @@ def validate_current_timestamp(context, current=None):
     if latest >= current:
         raise Exception('There is a future dated backup on the system preventing new backups')
 
-def update_filter_file(context):
+def update_partitions_in_filter_file(context):
     filter_filename = get_filter_file(context)
     if context.netbackup_service_host:
         restore_file_with_nbu(context, path=filter_filename)
     filter_tables = get_lines_from_csv_file(filter_filename)
+    filter_tables = set(filter_tables)
     tables_sql = "SELECT DISTINCT schemaname, tablename FROM pg_partitions"
     partitions_sql = "SELECT partitionschemaname, partitiontablename FROM pg_partitions WHERE schemaname='%s' AND tablename='%s';"
     table_list = execute_sql(tables_sql, context.master_port, context.dump_database)
 
-    for table_tuple in table_list:
+    for table in table_list:
+        table_tuple = tuple(table)
         if table_tuple in filter_tables:
-            partitions_list = execute_sql(partitions_sql % tuple(table_tuple), context.master_port, context.dump_database)
-            filter_tables.extend(partitions_list)
+            partitions_list = execute_sql(partitions_sql % table_tuple, context.master_port, context.dump_database)
+            partitions_list = convert_list_of_list_to_set_of_tuples(partitions_list)
+            filter_tables |= partitions_list
 
-    filtered_list = []
-    for table in filter_tables:
-        if table not in filtered_list:
-            filtered_list.append(table)
-    write_lines_to_csv_file(filter_filename, filtered_list)
+    write_lines_to_csv_file(filter_filename, filter_tables)
     if context.netbackup_service_host:
         backup_file_with_nbu(context, path=filter_filename)
 
@@ -534,7 +562,7 @@ class DumpDatabase(Operation):
         if self.context.dump_prefix and not self.context.incremental:
             self.create_filter_file()
 
-        # Format sql strings for all schema and table names
+        # Format sql strings for all schemas
         self.context.schema_file = format_schema_file(self.context.schema_file)
 
         if self.context.incremental and self.context.dump_prefix and get_filter_file(self.context):

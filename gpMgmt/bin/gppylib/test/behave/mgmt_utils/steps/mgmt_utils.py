@@ -2983,6 +2983,7 @@ def impl(context):
     start_database_if_not_started(context)
     if not check_database_is_running():
         raise Exception('Failed to start the database')
+
 @then('partition "{partitionnum}" is added to partition table "{tablename}" in "{dbname}"')
 def impl(context, partitionnum, tablename, dbname):
      add_partition(context, partitionnum, tablename, dbname)

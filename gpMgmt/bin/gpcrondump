@@ -761,7 +761,6 @@ class GpCronDump(Operation):
 
                 ao_partition_list = get_ao_partition_state(self.context)
                 co_partition_list = get_co_partition_state(self.context)
-                heap_partitions = get_dirty_heap_tables(self.context)
                 last_operation_list = get_last_operation_data(self.context)
 
                 dirty_partitions = None
@@ -769,7 +768,7 @@ class GpCronDump(Operation):
                 if self.context.incremental:
                     dirty_partitions = get_dirty_tables(self.context, ao_partition_list, co_partition_list, last_operation_list)
                     if self.context.dump_prefix and get_filter_file(self.context):
-                        update_filter_file(self.context)
+                        update_partitions_in_filter_file(self.context)
                     dirty_partitions = filter_dirty_tables(self.context, dirty_partitions)
                     dirty_file = write_dirty_file_to_temp(dirty_partitions)
 
