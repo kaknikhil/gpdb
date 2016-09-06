@@ -2978,20 +2978,12 @@ Feature: Validate command line arguments
         And verify that the restored table "public.heap_table" in database "bkdb" is analyzed
         And verify that the restored table "public.ao_part_table" in database "bkdb" is analyzed
 
-    @foo1
     Scenario: Backup and restore with statistics and table filters
         Given the test is initialized
         And there is a "heap" table "public.heap_table" in "bkdb" with data
         And there is a "heap" table "public.heap_index_table" in "bkdb" with data
         And there is a "ao" partition table "public.ao_part_table" in "bkdb" with data
         And the database "bkdb" is analyzed
-        When the user runs "gpcrondump -a -x bkdb --dump-stats -T public.heap_table -T public.heap_index_table"
-        And the timestamp from gpcrondump is stored
-        Then gpcrondump should return a return code of 0
-        And "statistics" file should be created under " "
-        And verify that the "statistics" file in " " dir contains "Schema: public, Table: ao_part_table"
-        And verify that the "statistics" file in " " dir does not contain "Schema: public, Table: heap_table"
-        And verify that the "statistics" file in " " dir does not contain "Schema: public, Table: heap_index_table"
         When the user runs "gpcrondump -a -x bkdb --dump-stats -t public.heap_table -t public.heap_index_table"
         And the timestamp from gpcrondump is stored
         Then gpcrondump should return a return code of 0
@@ -3004,6 +2996,95 @@ Feature: Validate command line arguments
         Then gpdbrestore should return a return code of 0
         And verify that the table "public.heap_index_table" in database "bkdb" is not analyzed
         And verify that the restored table "public.heap_table" in database "bkdb" is analyzed
+
+    Scenario: Backup with --dump-stats options
+        Given the test is initialized
+        And there is schema "schema_stats" exists in "bkdb"
+        And there is schema "schema_stats_2" exists in "bkdb"
+        And there is a "heap" table "public.heap_table" in "bkdb" with data
+        And there is a "heap" table "public.heap_index_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats.heap_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats.heap_index_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats_2.heap_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats_2.heap_index_table" in "bkdb" with data
+        And the database "bkdb" is analyzed
+        When the user runs "gpcrondump -a -x bkdb --dump-stats"
+        And the timestamp from gpcrondump is stored
+        Then gpcrondump should return a return code of 0
+        And "statistics" file should be created under " "
+        And verify that the "statistics" file in " " dir contains "Schema: public, Table: heap_table"
+        And verify that the "statistics" file in " " dir contains "Schema: public, Table: heap_index_table"
+        And verify that the "statistics" file in " " dir contains "Schema: schema_stats, Table: heap_table"
+        And verify that the "statistics" file in " " dir contains "Schema: schema_stats, Table: heap_index_table"
+        And verify that the "statistics" file in " " dir contains "Schema: schema_stats_2, Table: heap_table"
+        And verify that the "statistics" file in " " dir contains "Schema: schema_stats_2, Table: heap_index_table"
+        And database "bkdb" is dropped and recreated
+
+    Scenario Outline: Backup with dump-stats and all the include filter options
+        Given the test is initialized
+        And there is schema "schema_stats" exists in "bkdb"
+        And there is schema "schema_stats_2" exists in "bkdb"
+        And there is a "heap" table "public.heap_table" in "bkdb" with data
+        And there is a "heap" table "public.heap_index_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats.heap_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats.heap_index_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats_2.heap_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats_2.heap_index_table" in "bkdb" with data
+        And there is a file "schema_file" with tables "public|schema_stats"
+        And there is a file "table_file" with tables "public.heap_table|schema_stats.heap_table|public.heap_index_table|schema_stats.heap_index_table"
+        And the database "bkdb" is analyzed
+        When the user runs "gpcrondump -a -x bkdb --dump-stats <include_options>"
+        And the timestamp from gpcrondump is stored
+        Then gpcrondump should return a return code of 0
+        And "statistics" file should be created under " "
+        And verify that the "statistics" file in " " dir contains "Schema: public, Table: heap_table"
+        And verify that the "statistics" file in " " dir contains "Schema: public, Table: heap_index_table"
+        And verify that the "statistics" file in " " dir contains "Schema: schema_stats, Table: heap_table"
+        And verify that the "statistics" file in " " dir contains "Schema: schema_stats, Table: heap_index_table"
+        And verify that the "statistics" file in " " dir does not contain "Schema: schema_stats_2, Table: heap_table"
+        And verify that the "statistics" file in " " dir does not contain "Schema: schema_stats_2, Table: heap_index_table"
+        And database "bkdb" is dropped and recreated
+        And the file "./schema_file" is removed from the system
+        And the file "./table_file" is removed from the system
+        Examples:
+        | include_options |
+        | -s public -s schema_stats |
+        | -t public.heap_table -t public.heap_index_table -t schema_stats.heap_table -t schema_stats.heap_index_table |
+        | --schema-file schema_file |
+        | --table-file table_file |
+
+    Scenario Outline: Backup with dump-stats and all the exclude filter options
+        Given the test is initialized
+        And there is schema "schema_stats" exists in "bkdb"
+        And there is schema "schema_stats_2" exists in "bkdb"
+        And there is a "heap" table "public.heap_table" in "bkdb" with data
+        And there is a "heap" table "public.heap_index_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats.heap_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats.heap_index_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats_2.heap_table" in "bkdb" with data
+        And there is a "heap" table "schema_stats_2.heap_index_table" in "bkdb" with data
+        And there is a file "schema_file" with tables "public|schema_stats"
+        And there is a file "table_file" with tables "public.heap_table|schema_stats.heap_table|public.heap_index_table|schema_stats.heap_index_table"
+        And the database "bkdb" is analyzed
+        When the user runs "gpcrondump -a -x bkdb --dump-stats <include_options>"
+        And the timestamp from gpcrondump is stored
+        Then gpcrondump should return a return code of 0
+        And "statistics" file should be created under " "
+        And verify that the "statistics" file in " " dir does not contain "Schema: public, Table: heap_table"
+        And verify that the "statistics" file in " " dir does not contain "Schema: public, Table: heap_index_table"
+        And verify that the "statistics" file in " " dir does not contain "Schema: schema_stats, Table: heap_table"
+        And verify that the "statistics" file in " " dir does not contain "Schema: schema_stats, Table: heap_index_table"
+        And verify that the "statistics" file in " " dir contains "Schema: schema_stats_2, Table: heap_table"
+        And verify that the "statistics" file in " " dir contains "Schema: schema_stats_2, Table: heap_index_table"
+        And database "bkdb" is dropped and recreated
+        And the file "./schema_file" is removed from the system
+        And the file "./table_file" is removed from the system
+        Examples:
+            | include_options |
+            | -S public -S schema_stats |
+            | -T public.heap_table -T public.heap_index_table -T schema_stats.heap_table -T schema_stats.heap_index_table |
+            | --exclude-schema-file schema_file |
+            | --exclude-table-file table_file |
 
     @spl_char
     Scenario: Simple full backup and restore with special character

@@ -1412,3 +1412,28 @@ class BackupUtilsTestCase(unittest.TestCase):
             for i in range(len(lines)):
                 table = '"%s"."%s"\n' % tuple(lines[i])
                 self.assertEqual(call(table), result.write.call_args_list[i])
+
+    def test_convert_list_of_list_to_list_of_tuples_all_list(self):
+        lol = [['a','b'], ['b','c'], ['e','f']]
+        expected = [('a','b'), ('b','c'), ('e','f')]
+        result = convert_list_of_list_to_list_of_tuples(lol)
+        self.assertEqual(result, expected)
+
+    def test_convert_list_of_list_to_list_of_tuples_list_and_tuples(self):
+        lot = [['a','b'], ('b','c'), ['e','f']]
+        expected = [('a','b'), ('b','c'), ('e','f')]
+        result = convert_list_of_list_to_list_of_tuples(lot)
+        self.assertEqual(result, expected)
+
+
+    def test_convert_list_of_list_to_set_of_tuples_all_list(self):
+        lol = [['a','b'], ['b','c'], ['e','f']]
+        expected = set([('a','b'), ('b','c'), ('e','f')])
+        result = convert_list_of_list_to_set_of_tuples(lol)
+        self.assertEqual(result, expected)
+
+    def test_convert_list_of_list_to_set_of_tuples_list_and_tuples(self):
+        lot = [['a','b'], ('b','c'), ['e','f']]
+        expected = set([('a','b'), ('b','c'), ('e','f')])
+        result = convert_list_of_list_to_set_of_tuples(lot)
+        self.assertEqual(result, expected)

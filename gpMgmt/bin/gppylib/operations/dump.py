@@ -1540,6 +1540,7 @@ class MailEvent(Operation):
         Command('Sending email', command_str).run(validateAfter=True)
 
 class DumpStats(Operation):
+    #TODO : add unit tests for DumpStats
     def __init__(self, context):
         self.stats_filename = context.generate_filename("stats")
         self.context = context
@@ -1547,32 +1548,17 @@ class DumpStats(Operation):
     def execute(self):
         logger.info("Commencing pg_statistic dump")
 
-        include_tables = []
+        exclude_tables = set()
         if self.context.exclude_dump_tables_file:
-            # exclude_tables = set(get_lines_from_csv_file(self.context.exclude_dump_tables_file))
             exclude_tables = set(get_lines_from_csv_file(self.context.exclude_dump_tables_file))
-            user_tables = get_user_table_list(self.context)
-            user_tables = convert_list_of_list_to_list_of_tuples(user_tables)
-            include_tables = []
-            for table in user_tables:
-                #TODO : add a unit test for this
-                if table not in exclude_tables:
-                    include_tables.append(table)
+            include_tables = get_user_table_list(self.context)
         elif self.context.include_dump_tables_file:
             include_tables = get_lines_from_csv_file(self.context.include_dump_tables_file)
-        elif self.context.schema_file:
-            include_schemas = get_lines_from_file(self.context.schema_file)
-            for schema in include_schemas:
-                user_tables = get_user_table_list_for_schema(self.context, schema)
-                # tables = []
-                # for table in user_tables:
-                #     tables.append(table)
-                include_tables.extend(user_tables)
         else:
-             include_tables = get_user_table_list(self.context)
-            # user_tables = get_user_table_list(self.context)
-            # for table in user_tables:
-            #     include_tables.append(table)
+            include_tables = get_user_table_list(self.context)
+
+        include_tables = convert_list_of_list_to_set_of_tuples(include_tables)
+        include_tables = include_tables - exclude_tables
 
         with open(self.stats_filename, "w") as outfile:
             outfile.write("""--
@@ -1596,8 +1582,12 @@ set allow_system_table_mods="DML";
             cmd = Command('DDBoost copy of %s' % abspath, cmdStr)
             cmd.run(validateAfter=True)
 
-    def dump_table(self, table):
-        schemaname, tablename = table
+    def dump_table(self, table_tuple):
+        """
+        dumps DML statements to the gp_statistics_* file that includes creating an entry in gp_statistic and updating the table entry for pg_class
+        :param table_tuple: tuple formatted table (schema, table) whose entry needs to be created/updated in pg_statistic and pg_class
+        """
+        schemaname, tablename = table_tuple
         tuples_query = """SELECT pgc.relname, pgn.nspname, pgc.relpages, pgc.reltuples
                           FROM pg_class pgc, pg_namespace pgn
                           WHERE pgc.relnamespace = pgn.oid
