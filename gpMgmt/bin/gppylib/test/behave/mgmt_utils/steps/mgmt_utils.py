@@ -39,6 +39,10 @@ def _write_timestamp_to_json(context):
     with open(timestamp_json, 'w') as outfile:
         json.dump(global_timestamps, outfile)
 
+def _read_timestamp_from_json(context):
+    scenario_name = context._stack[0]['scenario'].name
+    with open(timestamp_json, 'r') as infile:
+        return json.load(infile)[scenario_name]
 
 @given('the database is running')
 def impl(context):
@@ -834,6 +838,13 @@ def impl(context, dbname):
 @then('the user runs gpdbrestore with the stored timestamp')
 def impl(context):
     command = 'gpdbrestore -e -t %s -a' % context.backup_timestamp
+    run_gpcommand(context, command)
+
+@when('the user runs gpdbrestore with the stored json timestamp')
+@then('the user runs gpdbrestore with the stored json timestamp')
+def impl(context):
+    timestamp = _read_timestamp_from_json(context)[0]
+    command = 'gpdbrestore -e -t %s -a' % timestamp
     run_gpcommand(context, command)
 
 @when('the user runs gpdbrestore with the stored timestamp to print the backup set with options "{options}"')
