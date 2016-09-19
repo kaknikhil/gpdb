@@ -6,11 +6,10 @@ import re
 import signal
 import stat
 import time
-import glob
-import shutil
 
 import yaml
-
+import glob, shutil
+from gppylib.commands.gp import GpStart, chk_local_db_running
 from gppylib.commands.base import Command, ExecutionError, REMOTE
 from gppylib.commands.gp import chk_local_db_running
 from gppylib.db import dbconn
@@ -109,9 +108,11 @@ def run_command_remote(context,command, host, source_file, export_mdd):
     context.stdout_message = result.stdout
     context.error_message = result.stderr
 
-def run_gpcommand(context, command):
+def run_gpcommand(context, command,cmd_prefix=''):
     context.exception = None
-    cmd = Command(name='run %s' % command, cmdStr='$GPHOME/bin/%s' % command)
+    cmd = Command(name='run %s' % command, cmdStr='$GPHOME/bin/%s' % (command))
+    if cmd_prefix:
+        cmd = Command(name='run %s' % command, cmdStr='%s;$GPHOME/bin/%s' % (cmd_prefix, command))
     try:
         cmd.run(validateAfter=True)
     except ExecutionError, e:
@@ -253,7 +254,7 @@ def get_table_data_to_file(filename, tablename, dbname):
     current_dir = os.getcwd()
     filename = os.path.join(current_dir, './gppylib/test/data', filename)
     order_sql = """
-                    select string_agg(a::text, ',')
+                    select string_agg(a, ',')
                         from (
                             select generate_series(1,c.relnatts+1) as a
                                 from pg_class as c

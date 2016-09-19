@@ -22,10 +22,23 @@ from gppylib.operations.startSegments import MIRROR_MODE_MIRRORLESS
 from gppylib.operations.unix import ListRemoteFilesByPattern, CheckRemoteFile
 from gppylib.test.behave_utils.gpfdist_utils.gpfdist_mgmt import Gpfdist
 from gppylib.test.behave_utils.utils import *
+import json
 
+timestamp_json = '/tmp/incr_ddboost_old_to_new_timestamps.json'
 master_data_dir = os.environ.get('MASTER_DATA_DIRECTORY')
+global_timestamps = dict()
 if master_data_dir is None:
     raise Exception('Please set MASTER_DATA_DIRECTORY in environment')
+
+def _write_timestamp_to_json(context):
+    scenario_name = context._stack[0]['scenario'].name
+    timestamp = get_timestamp_from_output(context)
+    if not global_timestamps.has_key(scenario_name):
+	global_timestamps[scenario_name] = list()
+    global_timestamps[scenario_name].append(timestamp)
+    with open(timestamp_json, 'w') as outfile:
+        json.dump(global_timestamps, outfile)
+
 
 @given('the database is running')
 def impl(context):
@@ -51,6 +64,20 @@ def impl(context, dbconn, version):
 @then('database "{dbname}" exists')
 def impl(context, dbname):
     create_database_if_not_exists(context, dbname)
+
+@given('the old database is started')
+def impl(context):
+    command = 'gpstop -a -M fast'
+    run_gpcommand(context, command)
+    command = 'gpstart -a'	
+    run_gpcommand(context, command, cmd_prefix = 'source /data/greenplum-db-old/greenplum_path.sh')
+    
+@given('the new database is started')
+def impl(context):
+    command = 'gpstop -a -M fast'
+    run_gpcommand(context, command)
+    command = 'gpstart -a'	
+    run_gpcommand(context, command)
 
 @given('database "{dbname}" is created if not exists on host "{HOST}" with port "{PORT}" with user "{USER}"')
 @then('database "{dbname}" is created if not exists on host "{HOST}" with port "{PORT}" with user "{USER}"')
@@ -585,11 +612,13 @@ def get_timestamp_from_output(context):
 @then('the full backup timestamp from gpcrondump is stored')
 def impl(context):
     context.full_backup_timestamp = get_timestamp_from_output(context)
+    _write_timestamp_to_json(context)
 
 @when('the timestamp from gpcrondump is stored')
 @then('the timestamp from gpcrondump is stored')
 def impl(context):
     context.backup_timestamp = get_timestamp_from_output(context)
+    _write_timestamp_to_json(context)
 
 @when('the timestamp is labeled "{lbl}"')
 def impl(context, lbl):
@@ -611,29 +640,33 @@ def impl(context):
 def impl(context):
     context.backup_timestamp = get_timestamp_from_output(context)
     context.inc_backup_timestamps.append(context.backup_timestamp)
+    _write_timestamp_to_json(context)
 
 @then('verify data integrity of database "{dbname}" between source and destination system, work-dir "{dir}"')
 def impl(context, dbname, dir):
-    dbconn_src = 'psql -p $GPTRANSFER_SOURCE_PORT -h $GPTRANSFER_SOURCE_HOST -U $GPTRANSFER_SOURCE_USER -d %s' % dbname
-    dbconn_dest = 'psql -p $GPTRANSFER_DEST_PORT -h $GPTRANSFER_DEST_HOST -U $GPTRANSFER_DEST_USER -d %s' % dbname
+    dbconn_src = 'psql -p $GPTRANSFER_SOURCE_PORT -h $GPTRANSFER_SOURCE_HOST -U $GPTRANSFER_SOURCE_USER -d %s'%dbname
+    dbconn_dest = 'psql -p $GPTRANSFER_DEST_PORT -h $GPTRANSFER_DEST_HOST -U $GPTRANSFER_DEST_USER -d %s'%dbname
     for file in os.listdir(dir):
         if file.endswith('.sql'):
             filename_prefix = os.path.splitext(file)[0]
-            ans_file_path = os.path.join(dir,filename_prefix + '.ans')
-            out_file_path = os.path.join(dir,filename_prefix + '.out')
-            diff_file_path = os.path.join(dir,filename_prefix + '.diff')
+            ans_file_path = os.path.join(dir,filename_prefix+'.ans')
+            out_file_path = os.path.join(dir,filename_prefix+'.out')
+            diff_file_path = os.path.join(dir,filename_prefix+'.diff')
             # run the command to get the exact data from the source system
-            command = '%s -f %s > %s' % (dbconn_src, os.path.join(dir, file), ans_file_path)
+            command = '%s -f %s > %s'%(dbconn_src, os.path.join(dir,file), ans_file_path)
             run_command(context, command)
 
             # run the command to get the data from the destination system, locally
-            command = '%s -f %s > %s' % (dbconn_dest, os.path.join(dir, file), out_file_path)
+            command = '%s -f %s > %s'%(dbconn_dest, os.path.join(dir,file), out_file_path)
             run_command(context, command)
 
             gpdiff_cmd = 'gpdiff.pl -w -I NOTICE: -I HINT: -I CONTEXT: -I GP_IGNORE: --gpd_init=gppylib/test/behave/mgmt_utils/steps/data/global_init_file %s %s > %s' % (ans_file_path, out_file_path, diff_file_path)
             run_command(context, gpdiff_cmd)
-            if context.ret_code != 0:
-                raise Exception ("Found difference between source and destination system, see %s" % file)
+    for file in os.listdir(dir):
+        if file.endswith('.diff') and os.path.getsize(os.path.join(dir,file)) > 0:
+            # if there is some difference generated into the diff file, raise expception
+                raise Exception ("Found difference between source and destination system, see %s"%file)
+
 
 @then('run post verifying workload under "{dir}"')
 def impl(context, dir):
@@ -2798,7 +2831,7 @@ def impl(context, file, prefix, path):
     collection_dirlist = os.listdir(path)
 
     if len(collection_dirlist) > 1:
-        raise Exception('more then one data collection directory found.')
+        raise Exception('more then one data collection directory found.  Possibly left over from a previous run of gp_log_collector')
     if len(collection_dirlist) == 0:
         raise Exception('Collection directory was not found')
 
@@ -2866,6 +2899,28 @@ def impl(context, cmd):
 @given('the OS type is not "{os_type}"')
 def impl(context, os_type):
     assert platform.system() != os_type
+
+@given('the user is installing {utility} using command "{command}" from install path {path}')
+@when('the user is installing {utility} using command "{command}" from install path {path}')
+@then('the user is installing {utility} using command "{command}" from install path {path}')
+def impl(context, utility, command, path):
+    context.command = command
+    context.utility = utility
+    context.path = path
+    context.currenttime = time.time()
+    context.cwd = os.getcwd()
+
+
+    ## create the install direcotry and copy scripts there
+    gphome = os.environ.get('GPHOME')
+    if not os.path.exists(path):
+        os.makedirs(path)
+    os.chdir(path)
+
+    shutil.copy(os.path.join(gphome, 'sbin/nodecollector.py'), path )
+    shutil.copy(os.path.join(gphome, 'bin/gp_log_collector'), path )
+
+    run_gpcommand(context, command)
 
 @then('{file1} and {file2} should exist and have a new mtime')
 def impl(context, file1, file2):
@@ -3818,7 +3873,6 @@ def impl(context, filename):
     cmd = Command(name="killing pid", cmdStr='kill -9 %s' % pid)
     cmd.run(validateAfter=True)
 
-
 @then('an attribute of table "{table}" in database "{dbname}" is deleted on segment with content id "{segid}"')
 def impl(context, table, dbname, segid):
     local_cmd = 'psql %s -t -c "SELECT port,hostname FROM gp_segment_configuration WHERE content=%s and role=\'p\';"' % (dbname, segid)
@@ -3851,8 +3905,8 @@ def impl(context, file, dbname):
     gparray = GpArray.initFromCatalog(dbconn.DbURL())
     segments = gparray.getDbList()
     for seg in segments:
-        host = seg.getSegmentHostName()
         if seg.isSegmentPrimary() or seg.isSegmentMaster():
+            host = seg.getSegmentHostName()
             port = seg.getSegmentPort()
             psql_cmd = "PGDATABASE=\'%s\' PGOPTIONS=\'-c gp_session_role=utility\' psql -h %s -p %s -c \"%s\"; " % (dbname, host, port, query)
             Command(name='Running Remote command: %s' % psql_cmd, cmdStr = psql_cmd).run(validateAfter=True)
