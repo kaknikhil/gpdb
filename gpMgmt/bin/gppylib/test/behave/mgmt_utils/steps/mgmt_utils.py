@@ -3850,6 +3850,15 @@ def impl(context):
         And the backup files in "/tmp" are deleted
     ''')
 
+@given('the test is initialized with database "{dbname}"')
+def impl(context, dbname):
+    context.execute_steps(u'''
+        Given the database is running
+        And database "%s" is dropped and recreated
+        And there are no backup files
+        And the backup files in "/tmp" are deleted
+    ''' % dbname)
+
 @then('validate and run gpcheckcat repair')
 def impl(context):
     context.execute_steps(u'''
@@ -4042,3 +4051,9 @@ def impl(context, table_name, db_name):
     with dbconn.connect(dbconn.DbURL(dbname=db_name)) as conn:
         dbconn.execSQL(conn, index_qry)
         conn.commit()
+
+@then('the timestamp will be stored in json format')
+@given('the timestamp will be stored in json format')
+@when('the timestamp will be stored in json format')
+def impl(context):
+    context.is_timestamp_stored_as_json = True
