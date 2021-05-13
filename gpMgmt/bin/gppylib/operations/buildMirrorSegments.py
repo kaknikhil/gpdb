@@ -385,6 +385,7 @@ class GpMirrorListToBuild:
             # object.
             cmd = gp.SegmentRewind('rewind dbid: %s' %
                                    rewindSeg.targetSegment.getSegmentDbId(),
+                                   rewindSeg.targetSegment.getSegmentDbId(),
                                    rewindSeg.targetSegment.getSegmentHostName(),
                                    rewindSeg.targetSegment.getSegmentDataDirectory(),
                                    rewindSeg.sourceHostname,
@@ -513,7 +514,7 @@ class GpMirrorListToBuild:
                                                               remoteHost=targetHostname)
 
         removeCmd = base.Command("remove file",
-                                 "rm -f %s" % pipes.quote(progressFile),
+                                 "[ ! -f %s/recovery.ok.dbid%s ] || rm -f %s/recovery.ok.dbid%s %s" % (gplog.get_logger_dir(), targetSegmentDbId, gplog.get_logger_dir(), targetSegmentDbId, pipes.quote(progressFile)),
                                  ctxt=base.REMOTE,
                                  remoteHost=targetHostname)
 
