@@ -81,6 +81,28 @@ class RecoverTriplet:
 
 
 class MirrorBuilderFactory:
+    """
+    parser
+    validate datadir is not relative normalizeAndValidateInputPath for both old and new
+    remove Exception('found twice in configuration')
+    add test for non integer port and remove from getMirrorTriples
+
+    -p or not -i (inplace)
+    read from gparray all down segments
+    create equivalent of parsed rows
+    -i code for parsed rows
+
+    -i
+    parse rows from config file
+    for each parsed row:
+        we get the list of failed, failover and live segment
+        find the failed segment in gparray
+        if not inplace:
+            host should be reachable
+            copy failover segment from the failed segment (this is weird since it mutates gparray)
+        add to recovery triplet: failed, peerforfailed, failover
+
+    """
     @staticmethod
     def instance(gpArray, config_file=None, new_hosts=[], logger=None):
         """
@@ -171,7 +193,7 @@ class GpArrayMirrorBuilder(MirrorBuilder):
             if unreachable_hosts:
                 raise ExceptionNoStackTraceNeeded("Cannot recover. The following recovery target hosts are "
                                                   "unreachable: %s" % unreachable_hosts)
-
+            #this for loop is not needed
             for key in list(recoverAddressMap.keys()):
                 (newHostname, newAddress) = recoverAddressMap[key]
                 try:
@@ -225,6 +247,7 @@ class ConfigFileMirrorBuilder(MirrorBuilder):
         self.config_file = config_file
         self.rows = self._parseConfigFile(self.config_file)
 
+
     def getMirrorTriples(self):
         failedSegments = []
         failoverSegments = []
@@ -240,13 +263,14 @@ class ConfigFileMirrorBuilder(MirrorBuilder):
                         and str(segment.getSegmentPort()) == failedPort
                         and segment.getSegmentDataDirectory() == failedDataDirectory):
 
-                    if failedSegment is not None:
-                        # this could be an assertion -- configuration should not allow multiple entries!
-                        raise Exception(("A segment to recover was found twice in configuration.  "
-                                         "This segment is described by address|port|directory '%s|%s|%s' "
-                                         "on the input line: %s") %
-                                        (failedAddress, failedPort, failedDataDirectory, row['lineno']))
+                    # if failedSegment is not None:
+                    #     # this could be an assertion -- configuration should not allow multiple entries!
+                    #     raise Exception(("A segment to recover was found twice in configuration.  "
+                    #                      "This segment is described by address|port|directory '%s|%s|%s' "
+                    #                      "on the input line: %s") %
+                    #                     (failedAddress, failedPort, failedDataDirectory, row['lineno']))
                     failedSegment = segment
+                    break
 
             if failedSegment is None:
                 raise Exception("A segment to recover was not found in configuration.  " \
