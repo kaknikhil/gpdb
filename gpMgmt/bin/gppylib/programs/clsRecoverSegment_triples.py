@@ -83,9 +83,9 @@ class RecoverTriplet:
 class MirrorBuilderFactory:
     """
     parser
-    validate datadir is not relative normalizeAndValidateInputPath for both old and new
-    remove Exception('found twice in configuration')
-    add test for non integer port and remove from getMirrorTriples
+    ~~validate datadir is not relative normalizeAndValidateInputPath for both old and new~~
+    ~~remove Exception('found twice in configuration')~~
+    ~~add test for non integer port and remove from getMirrorTriples~~
 
     -p or not -i (inplace)
     read from gparray all down segments
@@ -255,20 +255,14 @@ class ConfigFileMirrorBuilder(MirrorBuilder):
             # find the failed segment
             failedAddress = row['failedAddress']
             failedPort = row['failedPort']
-            failedDataDirectory = normalizeAndValidateInputPath(row['failedDataDirectory'],
-                                                                "config file", row['lineno'])
+            failedDataDirectory = row['failedDataDirectory']
+
             failedSegment = None
             for segment in self.gpArray.getDbList():
                 if (segment.getSegmentAddress() == failedAddress
                         and str(segment.getSegmentPort()) == failedPort
                         and segment.getSegmentDataDirectory() == failedDataDirectory):
 
-                    # if failedSegment is not None:
-                    #     # this could be an assertion -- configuration should not allow multiple entries!
-                    #     raise Exception(("A segment to recover was found twice in configuration.  "
-                    #                      "This segment is described by address|port|directory '%s|%s|%s' "
-                    #                      "on the input line: %s") %
-                    #                     (failedAddress, failedPort, failedDataDirectory, row['lineno']))
                     failedSegment = segment
                     break
 
@@ -291,13 +285,9 @@ class ConfigFileMirrorBuilder(MirrorBuilder):
                 failedSegment = failoverSegment.copy()
 
                 address = row["newAddress"]
-                try:
-                    port = int(row["newPort"])
-                except ValueError:
-                    raise Exception('Config file format error, invalid number value in line: %s' % (row['lineno']))
+                port = int(row["newPort"])
+                dataDirectory = row["newDataDirectory"]
 
-                dataDirectory = normalizeAndValidateInputPath(row["newDataDirectory"], "config file",
-                                                              row['lineno'])
                 # TODO: hostname probably should not be address, but to do so, "hostname" should be added to gpaddmirrors config file
                 # TODO: This appears identical to __getMirrorsToBuildFromConfigFilein clsAddMirrors
                 hostName = address
@@ -347,6 +337,8 @@ class ConfigFileMirrorBuilder(MirrorBuilder):
                     raise ExceptionNoStackTraceNeeded(msg)
                 address, port, datadir = parts
                 check_values(lineno, address=address, port=port, datadir=datadir)
+                datadir = normalizeAndValidateInputPath(datadir, f.name, lineno)
+
                 row = {
                     'failedAddress': address,
                     'failedPort': port,
@@ -361,6 +353,8 @@ class ConfigFileMirrorBuilder(MirrorBuilder):
                         raise ExceptionNoStackTraceNeeded(msg)
                     address2, port2, datadir2 = parts2
                     check_values(lineno, address=address2, port=port2, datadir=datadir2)
+                    datadir2 = normalizeAndValidateInputPath(datadir2, f.name, lineno)
+
                     row.update({
                         'newAddress': address2,
                         'newPort': port2,
@@ -374,6 +368,7 @@ class ConfigFileMirrorBuilder(MirrorBuilder):
         return rows
 
     @staticmethod
+    #TODO rename validate
     def _validate(rows):
         """
         Runs checks for making sure all the rows are consistent

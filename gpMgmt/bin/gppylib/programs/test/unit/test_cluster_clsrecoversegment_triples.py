@@ -606,6 +606,28 @@ class MirrorBuilderConfigFileParserTestCase(GpTestCase):
                          sdw3|20001|/mirror/gpseg5""",
             "expected": "config file lines 1 and 2 conflict: Cannot recover segment sdw3 with data directory "
                         "/mirror/gpseg5 in place if it is used as a recovery segment"
+        },
+        {
+            "name": "old_data_dir_not_absolute",
+            "config": """sdw2|50000|/data2/mirror/gpseg0 sdw3|50000|/data/mirror/gpseg0
+                         sdw2|50001|relative/old/mirror/gpseg1 sdw4|50001|/data/mirror/gpseg1""",
+            "expected": "Path entered.*is invalid; it must be a full path.  Path: 'relative/old/mirror/gpseg1' from: 2"
+        },
+        {
+            "name": "new_data_dir_not_absolute",
+            "config": """sdw2|50001|/data2/mirror/gpseg1 sdw4|50001|relative/new/mirror/gpseg1
+                         sdw2|50000|/data2/mirror/gpseg0 sdw3|50000|/data/mirror/gpseg0""",
+            "expected": "Path entered.*is invalid; it must be a full path.  Path: 'relative/new/mirror/gpseg1' from: 1"
+        },
+        {
+            "name": "old_port_invalid",
+            "config": """sdw2|old_invalid_port|/data2/mirror/gpseg1 sdw4|50001|relative/new/mirror/gpseg1""",
+            "expected": "Invalid port on line 1"
+        },
+        {
+            "name": "new_port_invalid",
+            "config": """sdw2|50001|/data2/mirror/gpseg1 sdw4|new_invalid_port|relative/new/mirror/gpseg1""",
+            "expected": "Invalid port on line 1"
         }
     ]
 
