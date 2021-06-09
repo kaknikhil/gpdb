@@ -150,13 +150,13 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
                 "name": "no_peer_for_failed_seg",
                 "gparray": self.content0_no_peer_gparray_str,
                 "config": "sdw1|20000|/primary/gpseg0 sdw3|20000|/primary/gpseg5",
-                "expected": "No peer found for dbid 2"
+                "expected": "No peer found for dbid 2. liveSegment is None"
             },
             {
                 "name": "both_peers_down",
                 "gparray": self.content0_mirror_and_its_peer_down_gparray_str,
                 "config": "sdw1|20000|/primary/gpseg0 sdw3|20000|/primary/gpseg5",
-                "expected": "Both segments for content 0 are down. Try restarting"
+                "expected": "Primary segment is not up for content 0"
             },
             #
             #
@@ -241,7 +241,21 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
                              self._triplet('4|2|m|p|s|d|sdw2|sdw2|20000|/primary/gpseg2',
                                            '8|2|p|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2',
                                            '4|2|m|p|s|d|new_2|new_2|20000|/primary/gpseg2')]
-            }
+            },
+            {
+                "name": "enough_hosts_with_unreachable",
+                "gparray": self.three_failedover_segs_gparray_str,
+                "new_hosts": ['new_1', 'new_2'],
+                "expected": [self._triplet('2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0',
+                                           '6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0',
+                                           '2|0|m|p|s|d|new_1|new_1|20000|/primary/gpseg0'),
+                             self._triplet('3|1|m|p|s|d|sdw1|sdw1|20001|/primary/gpseg1',
+                                           '7|1|p|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1',
+                                           '3|1|m|p|s|d|new_1|new_1|20001|/primary/gpseg1'),
+                             self._triplet('4|2|m|p|s|d|sdw2|sdw2|20000|/primary/gpseg2',
+                                           '8|2|p|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2',
+                                           '4|2|m|p|s|d|new_2|new_2|20000|/primary/gpseg2')]
+            },
         ]
 
         self.run_pass_tests(tests, self.run_single_GpArray_test)
@@ -279,16 +293,17 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
             {
                 "name": "no_peer_for_failed_seg",
                 "gparray": self.content0_no_peer_gparray_str,
-                "new_hosts": ['new_1'],
+                "new_hosts": ['new_1', 'new_2'],
                 "unreachable_hosts": [],
-                "expected": "No peer found for dbid 2"
+                "expected": "No peer found for dbid 2. liveSegment is None"
             },
             {
                 "name": "both_peers_down",
                 "gparray": self.content0_mirror_and_its_peer_down_gparray_str,
-                "new_hosts": ['new_1'],
+                "new_hosts": ['new_1', 'new_2'],
                 "unreachable_hosts": [],
-                "expected": "Both segments for content 0 are down. Try restarting"
+                #TODO had to change the error message after the refactor.
+                "expected": "Segment to recover from for content 0 is not a primary"
             }
         ]
         self.run_fail_tests(tests, self.run_single_GpArray_test)
@@ -369,7 +384,7 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
                                   9|3|m|m|s|u|sdw3|sdw3|21001|/mirror/gpseg3
                                   6|0|p|m|s|d|sdw2|sdw2|21000|/mirror/gpseg0
                                   7|1|m|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1
-                                  4|2|m|p|s|d|sdw2|sdw2|20000|/primary/gpseg2
+                                  4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
                                   5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3'''
 
     def _run_single_GpArrayMirrorBuilder_test(self, gparray_str, config_file, new_hosts, unreachable_hosts,
