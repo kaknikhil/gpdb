@@ -146,6 +146,10 @@ class MirrorBuilder(abc.ABC):
     def getInterfaceHostnameWarnings(self):
         return self.interfaceHostnameWarnings
 
+    # REVISIT: the returned RecoveryTriple(s) reflect (failed, live, failover) with failover reflecting the recovery
+    # information of the new segment(that which will replace failed).  This is what is acted upon by
+    # pg_rewind/pg_basebackup.  But as an artifact of the implementation, the caller's original gparray is mutated to
+    # reflect this failover segment.  This is how we implement the `-o` option.
     def _common_code(self, requests):
         dbIdToPeerMap = self.gpArray.getDbIdToPeerMap()
         for req in requests:
