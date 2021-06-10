@@ -8,30 +8,27 @@ import tempfile
 import gppylib
 from gparray import Segment, GpArray
 from gppylib.programs import clsRecoverSegment_triples
-from gppylib.programs.clsRecoverSegment_triples import ConfigFileMirrorBuilder, MirrorBuilderFactory, RecoverTriplet
+from gppylib.programs.clsRecoverSegment_triples import FromUserConfigFile, RecoveryTripletsFactory, RecoveryTriplet
 from test.unit.gp_unittest import GpTestCase
 
-class MirrorBuilderFactoryTestCase(GpTestCase):
+
+class RecoveryTripletsFactoryTestCase(GpTestCase):
     def setUp(self):
         # Set maxDiff to None to see the entire diff on the console in case of failure
         self.maxDiff = None
-
-        # we always mock ping.local to be a no-op. Once we refactor -i and -p to
-        # use the same code path, this mock will no longer be needed
-        clsRecoverSegment_triples.unix.Ping.local = Mock()
 
     def run_single_ConfigFile_test(self, test):
         with tempfile.NamedTemporaryFile() as f:
             f.write(test["config"].encode("utf-8"))
             f.flush()
-            return self._run_single_GpArrayMirrorBuilder_test(test["gparray"], f.name, None, None, test.get("unreachable_existing_hosts"))
+            return self._run_single_FromGpArray_test(test["gparray"], f.name, None, None, test.get("unreachable_existing_hosts"))
 
     def run_single_GpArray_test(self, test):
-        return self._run_single_GpArrayMirrorBuilder_test(test["gparray"], None, test["new_hosts"], test.get("unreachable_hosts"),
+        return self._run_single_FromGpArray_test(test["gparray"], None, test["new_hosts"], test.get("unreachable_hosts"),
                                      test.get("unreachable_existing_hosts"))
 
     #TODO: do we want new hosts here?  We do not officially support new hosts with "-i"
-    def test_ConfigFileMirrorBuilder_getMirrorTriples_should_pass(self):
+    def test_FromUserConfigFile_getMirrorTriples_should_pass(self):
         tests = [
             {
                 "name": "blank_config_file",
@@ -108,7 +105,7 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
         ]
         self.run_pass_tests(tests, self.run_single_ConfigFile_test)
 
-    def test_ConfigFileMirrorBuilder_getMirrorTriples_should_fail(self):
+    def test_FromUserConfigFile_getMirrorTriples_should_fail(self):
         tests = [
             {
                 "name": "invalid_failed_address",
@@ -177,7 +174,7 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
         ]
         self.run_fail_tests(tests, self.run_single_ConfigFile_test)
 
-    def test_GpArrayMirrorBuilder_getMirrorTriples_should_pass(self):
+    def test_FromGpArray_getMirrorTriples_should_pass(self):
         tests = [{
                 "name": "no_new_hosts",
                 "gparray": self.three_failedover_segs_gparray_str,
@@ -264,7 +261,7 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
 
         self.run_pass_tests(tests, self.run_single_GpArray_test)
 
-    def test_GpArrayMirrorBuilder_getMirrorTriples_should_fail(self):
+    def test_FromGpArray_getMirrorTriples_should_fail(self):
         tests = [
             {
                 "name": "not_enough_hosts",
@@ -413,17 +410,17 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
                                   4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
                                   5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3'''
 
-    def _run_single_GpArrayMirrorBuilder_test(self, gparray_str, config_file, new_hosts, unreachable_hosts,
+    def _run_single_FromGpArray_test(self, gparray_str, config_file, new_hosts, unreachable_hosts,
                                               unreachable_existing_hosts=None):
         unreachable_hosts = unreachable_hosts if unreachable_hosts else []
         gppylib.programs.clsRecoverSegment_triples.get_unreachable_segment_hosts = Mock(return_value=unreachable_hosts)
 
         initial_gparray = self.get_gp_array(gparray_str, unreachable_existing_hosts)
         mutated_gparray = self.get_gp_array(gparray_str, unreachable_existing_hosts)
-        i = MirrorBuilderFactory.instance(mutated_gparray,
+        i = RecoveryTripletsFactory.instance(mutated_gparray,
                                           config_file=config_file,
                                           new_hosts=new_hosts)
-        triples = i.getMirrorTriples()
+        triples = i.getTriplets()
 
         warnings = i.getInterfaceHostnameWarnings()
         if warnings:
@@ -437,7 +434,7 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
     def _triplet(failed, live, failover, failed_unreachable=False):
         failedSeg = Segment.initFromString(failed)
         failedSeg.unreachable = failed_unreachable
-        return RecoverTriplet(failedSeg,
+        return RecoveryTriplet(failedSeg,
                               Segment.initFromString(live),
                               Segment.initFromString(failover) if failover else None)
 
@@ -502,14 +499,14 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
         return gparray_str.getvalue()
 
 
-class MirrorBuilderConfigFileParserTestCase(GpTestCase):
+class FromUserConfigFileParserTestCase(GpTestCase):
 
     @staticmethod
     def run_single_parser_test(test):
         with tempfile.NamedTemporaryFile() as f:
             f.write(test["config"].encode("utf-8"))
             f.flush()
-            return ConfigFileMirrorBuilder._parseConfigFile(f.name)
+            return FromUserConfigFile._parseConfigFile(f.name)
 
     passing_tests = [
         {

@@ -1,7 +1,6 @@
 import abc
 from typing import List
 
-from gppylib.commands import unix
 from gppylib.mainUtils import ExceptionNoStackTraceNeeded
 from gppylib.operations.detect_unreachable_hosts import get_unreachable_segment_hosts
 from gppylib.parseutils import line_reader, check_values, canonicalize_address
@@ -9,7 +8,7 @@ from gppylib.utils import checkNotNone, normalizeAndValidateInputPath
 from gppylib.gparray import GpArray, Segment
 
 
-class RecoverTriplet:
+class RecoveryTriplet:
     """
     Represents the segments needed to perform a recovery on a given segment.
     failed   = acting mirror that needs to be recovered
@@ -26,7 +25,7 @@ class RecoverTriplet:
         return "Failed: {0} Live: {1} Failover: {2}".format(self.failed, self.live, self.failover)
 
     def __eq__(self, other):
-        if not isinstance(other, RecoverTriplet):
+        if not isinstance(other, RecoveryTriplet):
             return NotImplemented
 
         return self.failed == other.failed and self.live == other.live and self.failover == other.failover
@@ -85,7 +84,7 @@ class RecoverTriplet:
             assert failed.getSegmentDbId() == failover.getSegmentDbId()
 
 
-class MirrorBuilderFactory:
+class RecoveryTripletsFactory:
     """
     parser
     ~~validate datadir is not relative normalizeAndValidateInputPath for both old and new~~
@@ -126,14 +125,15 @@ BOTH:  self.__options.outputSampleConfigFile  gparray is mutated for all triples
         :return:
         """
         if config_file:
-            return ConfigFileMirrorBuilder(gpArray, config_file)
-        if not new_hosts:
-            return GpArrayNoNewHostsMirrorBuilder(gpArray, logger)
+            return FromUserConfigFile(gpArray, config_file)
+        else:
+            if not new_hosts:
+                return FromGpArrayToExistingHosts(gpArray, logger)
+            else:
+                return FromGpArrayToNewHosts(gpArray, new_hosts, logger)
 
-        return GpArrayMirrorBuilder(gpArray, new_hosts, logger)
 
-
-class MirrorBuilder(abc.ABC):
+class RecoveryTriplets(abc.ABC):
     def __init__(self, gpArray):
         """
 
@@ -143,6 +143,19 @@ class MirrorBuilder(abc.ABC):
         self.recoveryTriples = []
         self.interfaceHostnameWarnings = []
 
+    @abc.abstractmethod
+    def getTriplets(self) -> List[RecoveryTriplet]:
+        """
+        :return: Returns a list of tuples that describes the following
+        Failed Segment:
+        Live Segment
+        Failover Segment
+        This function ignores the status (i.e. u or d) of the segment because this function is used by gpaddmirrors,
+        gpmovemirrors and gprecoverseg. For gpaddmirrors and gpmovemirrors, the segment to be moved should not
+        be marked as down whereas for gprecoverseg the segment to be recovered needs to marked as down.
+        """
+        pass
+
     def getInterfaceHostnameWarnings(self):
         return self.interfaceHostnameWarnings
 
@@ -150,6 +163,8 @@ class MirrorBuilder(abc.ABC):
     # information of the new segment(that which will replace failed).  This is what is acted upon by
     # pg_rewind/pg_basebackup.  But as an artifact of the implementation, the caller's original gparray is mutated to
     # reflect this failover segment.  This is how we implement the `-o` option.
+    # In other words, the returned triples reflect what we want to do but the gparray is mutated to reflect
+    # what will be the state are that is done.
     def _common_code(self, requests):
         dbIdToPeerMap = self.gpArray.getDbIdToPeerMap()
         for req in requests:
@@ -179,31 +194,17 @@ class MirrorBuilder(abc.ABC):
             if req.failed.unreachable and not req.is_new_host:
                 continue
             peer = dbIdToPeerMap.get(req.failed.getSegmentDbId())
-            self.recoveryTriples.append(RecoverTriplet(req.failed, peer, failoverSegment))
+            self.recoveryTriples.append(RecoveryTriplet(req.failed, peer, failoverSegment))
 
         return self.recoveryTriples
 
-    @abc.abstractmethod
-    def getMirrorTriples(self) -> List[RecoverTriplet]:
-        """
 
-        :return: Returns a list of tuples that describes the following
-        Failed Segment:
-        Live Segment
-        Failover Segment
-        This function ignores the status (i.e. u or d) of the segment because this function is used by gpaddmirrors,
-        gpmovemirrors and gprecoverseg. For gpaddmirrors and gpmovemirrors, the segment to be moved should not
-        be marked as down whereas for gprecoverseg the segment to be recovered needs to marked as down.
-        """
-        pass
-
-
-class GpArrayNoNewHostsMirrorBuilder(MirrorBuilder):
+class FromGpArrayToExistingHosts(RecoveryTriplets):
     def __init__(self, gpArray, logger):
         super().__init__(gpArray)
         self.logger = logger
 
-    def getMirrorTriples(self):
+    def getTriplets(self):
         segments = self.gpArray.getSegDbList()
         #TODO only get failed mirrors ?
         failedSegments = [seg for seg in segments if seg.isSegmentDown()]
@@ -215,7 +216,7 @@ class GpArrayNoNewHostsMirrorBuilder(MirrorBuilder):
         return self._common_code(requests)
 
 
-class GpArrayMirrorBuilder(MirrorBuilder):
+class FromGpArrayToNewHosts(RecoveryTriplets):
     def __init__(self, gpArray, newHosts, logger):
         super().__init__(gpArray)
         self.newHosts = []
@@ -225,7 +226,7 @@ class GpArrayMirrorBuilder(MirrorBuilder):
 
     #TODO add code to check if more hosts than needed are passed and skip new hosts that are unreachable
     #TODO either use failedSeg or failed
-    def getMirrorTriples(self):
+    def getTriplets(self):
 
         failedSegments = [seg for seg in self.gpArray.getSegDbList() if seg.isSegmentDown()]
         failedSegmentsByHost = GpArray.getSegmentsByHostName(failedSegments)
@@ -267,54 +268,14 @@ class RecoveryRequest:
         self.failover_datadir = failover_datadir
         self.is_new_host = is_new_host
 
-"""
 
-# -i case new host unreachable --> skip
-# -p case new hsot unreachable andused --> Exception
-
-if new_hosts:
-   requests = assign_failover_info(requests, new_hosts)  // assign host, address, ports, datadir)  (-p case)
-
-triples = []
-for request in requests:
-    failed = lookup(lhs)
-    
-    failover = calculate(failed)
-    live = lookup(failed)
-    
-    new_hosts = new_hosts(requests)
-    unreachable_new_hosts = get_unreachable_hosts(new_hosts)
-    
-    if not failover:
-       # in place
-       if failed.reachable:
-           triples.append((failed, live, failover)
-    else:
-       if isNew(failover.host):
-            if failover.reachable:
-                triples.append((failed, live, failover)
-            else:
-                # Exception or skip?
-       else:
-            if failover.reachable:
-                triples.append((failed, live, failover))         
-    
-return triples
-
-!-p and !-i
-don't care about new_hosts
-get all the failed segs
-failover is none
-populate req
-
-"""
-class ConfigFileMirrorBuilder(MirrorBuilder):
+class FromUserConfigFile(RecoveryTriplets):
     def __init__(self, gpArray, config_file):
         super().__init__(gpArray)
         self.config_file = config_file
         self.rows = self._parseConfigFile(self.config_file)
 
-    def getMirrorTriples(self):
+    def getTriplets(self):
         requests = []
         for row in self.rows:
             # find the failed segment
@@ -384,7 +345,7 @@ class ConfigFileMirrorBuilder(MirrorBuilder):
 
                 rows.append(row)
 
-        ConfigFileMirrorBuilder._validate(rows)
+        FromUserConfigFile._validate(rows)
 
         return rows
 

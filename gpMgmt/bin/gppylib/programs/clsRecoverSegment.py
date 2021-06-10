@@ -131,10 +131,10 @@ class GpRecoverSegmentProgram:
             segs_with_persistent_mirroring_disabled = []
             self._output_segments_with_persistent_mirroring_disabled(segs_with_persistent_mirroring_disabled)
 
-            instance = clsRecoverSegment_triples.MirrorBuilderFactory.instance(gpArray, self.__options.recoveryConfigFile, self.__options.newRecoverHosts,
-                                                     self.logger)
+            instance = clsRecoverSegment_triples.RecoveryTripletsFactory.instance(gpArray, self.__options.recoveryConfigFile, self.__options.newRecoverHosts,
+                                                                                  self.logger)
             segs = []
-            for t in instance.getMirrorTriples():
+            for t in instance.getTriplets():
                 #TODO pass just t to GpMirrorToBuild
                 segs.append(GpMirrorToBuild(t.failed, t.live, t.failover, self.__options.forceFullResynchronization))
 
