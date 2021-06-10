@@ -242,20 +242,23 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
                                            '8|2|p|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2',
                                            '4|2|m|p|s|d|new_2|new_2|20000|/primary/gpseg2')]
             },
-            {
-                "name": "enough_hosts_with_unreachable",
-                "gparray": self.three_failedover_segs_gparray_str,
-                "new_hosts": ['new_1', 'new_2'],
-                "expected": [self._triplet('2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0',
-                                           '6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0',
-                                           '2|0|m|p|s|d|new_1|new_1|20000|/primary/gpseg0'),
-                             self._triplet('3|1|m|p|s|d|sdw1|sdw1|20001|/primary/gpseg1',
-                                           '7|1|p|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1',
-                                           '3|1|m|p|s|d|new_1|new_1|20001|/primary/gpseg1'),
-                             self._triplet('4|2|m|p|s|d|sdw2|sdw2|20000|/primary/gpseg2',
-                                           '8|2|p|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2',
-                                           '4|2|m|p|s|d|new_2|new_2|20000|/primary/gpseg2')]
-            },
+            # {
+            #     "name": "failed_unreachable",
+            #     "gparray": """1|-1|p|p|n|u|mdw|mdw|5432|/master/gpseg-1
+            #                    2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0
+            #                    3|1|p|p|s|u|sdw1|sdw1|20001|/primary/gpseg1
+            #                    8|2|m|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2
+            #                    9|3|m|m|s|u|sdw3|sdw3|21001|/mirror/gpseg3
+            #                    6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0
+            #                    7|1|m|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1
+            #                    4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
+            #                    5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3""",
+            #     "new_hosts": ['new_1'],
+            #     "unreachable_existing_hosts": ['sdw1'],
+            #     "expected": [self._triplet('2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0',
+            #                                '6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0',
+            #                                '2|0|m|p|s|d|new_1|new_1|20000|/primary/gpseg0')]
+            # },
         ]
 
         self.run_pass_tests(tests, self.run_single_GpArray_test)
@@ -304,7 +307,15 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
                 "unreachable_hosts": [],
                 #TODO had to change the error message after the refactor.
                 "expected": "Segment to recover from for content 0 is not a primary"
-            }
+            },
+            {
+                "name": "live_unreachable",
+                "gparray": self.three_failedover_segs_gparray_str,
+                "new_hosts": ['new_1','new_2'],
+                "unreachable_existing_hosts": ['sdw2'],
+                "expected": "The recovery source segment sdw2 \(content 0\) is unreachable"
+            },
+
         ]
         self.run_fail_tests(tests, self.run_single_GpArray_test)
 
