@@ -167,7 +167,7 @@ class MirrorBuilder(abc.ABC):
 
             # this must come AFTER the if check above because failedSegment can be adjusted to
             #   point to a different object
-            if req.failed.unreachable:
+            if req.failed.unreachable and not req.is_new_host:
                 continue
             peer = dbIdToPeerMap.get(req.failed.getSegmentDbId())
             self.recoveryTriples.append(RecoverTriplet(req.failed, peer, failoverSegment))
@@ -222,14 +222,6 @@ class GpArrayMirrorBuilder(MirrorBuilder):
         failedSegmentsByHost = GpArray.getSegmentsByHostName(failedSegments)
         recoverHostMap = {k:v for k,v in zip(list(failedSegmentsByHost.keys()), self.newHosts)}
 
-        """
-        map the failed segments hosts to new recovery hosts
-        key: failedSegHost
-        value: newSegHost
-        iterate over the failedseghosts
-            get recoveryhost
-            iterate over each seg on the host
-        """
         portAssigner = _PortAssigner(self.gpArray)
 
         if len(self.newHosts) != len(failedSegmentsByHost):
@@ -240,8 +232,7 @@ class GpArrayMirrorBuilder(MirrorBuilder):
                 self.interfaceHostnameWarnings.append("The following recovery hosts were not needed:")
                 for h in self.newHosts[len(failedSegmentsByHost):]:
                     self.interfaceHostnameWarnings.append("\t%s" % h)
-
-        unreachable_hosts = get_unreachable_segment_hosts(self.newHosts[:len(failedSegments)], len(failedSegments))
+        unreachable_hosts = get_unreachable_segment_hosts(self.newHosts[:len(failedSegmentsByHost)], len(failedSegmentsByHost))
         if unreachable_hosts:
             raise ExceptionNoStackTraceNeeded("Cannot recover. The following recovery target hosts are "
                                               "unreachable: %s" % unreachable_hosts)

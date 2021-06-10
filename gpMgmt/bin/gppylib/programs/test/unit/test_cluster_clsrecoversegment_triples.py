@@ -242,23 +242,24 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
                                            '8|2|p|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2',
                                            '4|2|m|p|s|d|new_2|new_2|20000|/primary/gpseg2')]
             },
-            # {
-            #     "name": "failed_unreachable",
-            #     "gparray": """1|-1|p|p|n|u|mdw|mdw|5432|/master/gpseg-1
-            #                    2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0
-            #                    3|1|p|p|s|u|sdw1|sdw1|20001|/primary/gpseg1
-            #                    8|2|m|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2
-            #                    9|3|m|m|s|u|sdw3|sdw3|21001|/mirror/gpseg3
-            #                    6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0
-            #                    7|1|m|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1
-            #                    4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
-            #                    5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3""",
-            #     "new_hosts": ['new_1'],
-            #     "unreachable_existing_hosts": ['sdw1'],
-            #     "expected": [self._triplet('2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0',
-            #                                '6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0',
-            #                                '2|0|m|p|s|d|new_1|new_1|20000|/primary/gpseg0')]
-            # },
+            {
+                "name": "failed_unreachable",
+                #FIXME make a variable for this ??
+                "gparray": """1|-1|p|p|n|u|mdw|mdw|5432|/master/gpseg-1
+                               2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0
+                               3|1|p|p|s|u|sdw1|sdw1|20001|/primary/gpseg1
+                               8|2|m|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2
+                               9|3|m|m|s|u|sdw3|sdw3|21001|/mirror/gpseg3
+                               6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0
+                               7|1|m|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1
+                               4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
+                               5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3""",
+                "new_hosts": ['new_1'],
+                "unreachable_existing_hosts": ['sdw1'],
+                "expected": [self._triplet('2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0',
+                                           '6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0',
+                                           '2|0|m|p|s|d|new_1|new_1|20000|/primary/gpseg0')]
+            },
         ]
 
         self.run_pass_tests(tests, self.run_single_GpArray_test)
@@ -324,7 +325,7 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
             with self.subTest(msg=test["name"]):
 
                 initial_gparray, actual_gparray, actual = fn_to_test(test)
-                self.assertEqual(test["expected"], actual,
+                self.assertEqual(str(test["expected"]), str(actual),
                                  msg="\n\nTest {} failed.\n\nexpected:\n{}\n\ngot:\n{}".format(
                                      test["name"], test["expected"], actual))
 
