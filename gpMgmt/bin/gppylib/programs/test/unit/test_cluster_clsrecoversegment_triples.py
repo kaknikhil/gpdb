@@ -256,6 +256,7 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
                                5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3""",
                 "new_hosts": ['new_1'],
                 "unreachable_existing_hosts": ['sdw1'],
+                "set_unreachable_to_false_for_failed_segments_on_these_hosts": ['sdw1'],
                 "expected": [self._triplet('2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0',
                                            '6|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0',
                                            '2|0|m|p|s|d|new_1|new_1|20000|/primary/gpseg0')]
@@ -320,12 +321,26 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
         ]
         self.run_fail_tests(tests, self.run_single_GpArray_test)
 
+    # FIXME: return a copy,but do not copy None!
+    def _update_triplets(self, triplets, updates=[]):
+        if not updates:
+            updates = []
+
+        for triplet in triplets:
+            if triplet.failed.hostname in updates:
+                triplet.failed.unreachable = True
+                print("CHANGING IT....")
+
+        return triplets
+
+
     def run_pass_tests(self, tests, fn_to_test):
         for test in tests:
             with self.subTest(msg=test["name"]):
 
                 initial_gparray, actual_gparray, actual = fn_to_test(test)
-                self.assertEqual(str(test["expected"]), str(actual),
+                expected = self._update_triplets(test["expected"], test.get("set_unreachable_to_false_for_failed_segments_on_these_hosts"))
+                self.assertEqual(expected, actual,
                                  msg="\n\nTest {} failed.\n\nexpected:\n{}\n\ngot:\n{}".format(
                                      test["name"], test["expected"], actual))
 
@@ -476,8 +491,10 @@ class MirrorBuilderFactoryTestCase(GpTestCase):
         """
         segMap = gparray.getSegDbMap()
         gparray_str = io.StringIO()
-        for seg in sorted(segMap.keys()):
-            gparray_str.write(repr(segMap[seg]))
+        for dbid in sorted(segMap.keys()):
+            gparray_str.write(repr(segMap[dbid]))
+            # REVISIT: ugh!
+            gparray_str.write(":unreachable=%s" % segMap[dbid].unreachable)
             gparray_str.write('\n')
 
         return gparray_str.getvalue()

@@ -26,7 +26,11 @@ class RecoverTriplet:
         return "Failed: {0} Live: {1} Failover: {2}".format(self.failed, self.live, self.failover)
 
     def __eq__(self, other):
+        if not isinstance(other, RecoverTriplet):
+            return NotImplemented
+
         return self.failed == other.failed and self.live == other.live and self.failover == other.failover
+
 
     @staticmethod
     def validate(failed, live, failover):
@@ -155,6 +159,7 @@ class MirrorBuilder(abc.ABC):
                   build a failover segment
                 """
                 # these two lines make it so that failoverSegment points to the object that is registered in gparray
+                #   as the failed segment(!).
                 failoverSegment = req.failed
                 req.failed = failoverSegment.copy()
 
