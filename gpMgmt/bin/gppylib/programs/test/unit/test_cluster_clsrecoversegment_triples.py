@@ -417,9 +417,7 @@ class RecoveryTripletsFactoryTestCase(GpTestCase):
 
         initial_gparray = self.get_gp_array(gparray_str, unreachable_existing_hosts)
         mutated_gparray = self.get_gp_array(gparray_str, unreachable_existing_hosts)
-        i = RecoveryTripletsFactory.instance(mutated_gparray,
-                                          config_file=config_file,
-                                          new_hosts=new_hosts)
+        i = RecoveryTripletsFactory.instance(mutated_gparray, config_file=config_file, new_hosts=new_hosts)
         triples = i.getTriplets()
 
         warnings = i.getInterfaceHostnameWarnings()

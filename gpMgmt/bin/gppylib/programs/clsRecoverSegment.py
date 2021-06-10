@@ -42,7 +42,7 @@ from gppylib.operations.utils import ParallelOperation
 from gppylib.operations.package import SyncPackages
 from gppylib.heapchecksum import HeapChecksum
 from gppylib.mainUtils import ExceptionNoStackTraceNeeded
-from gppylib.programs import clsRecoverSegment_triples
+from gppylib.programs.clsRecoverSegment_triples import RecoveryTripletsFactory
 
 logger = gplog.get_default_logger()
 
@@ -131,12 +131,8 @@ class GpRecoverSegmentProgram:
             segs_with_persistent_mirroring_disabled = []
             self._output_segments_with_persistent_mirroring_disabled(segs_with_persistent_mirroring_disabled)
 
-            instance = clsRecoverSegment_triples.RecoveryTripletsFactory.instance(gpArray, self.__options.recoveryConfigFile, self.__options.newRecoverHosts,
-                                                                                  self.logger)
-            segs = []
-            for t in instance.getTriplets():
-                #TODO pass just t to GpMirrorToBuild
-                segs.append(GpMirrorToBuild(t.failed, t.live, t.failover, self.__options.forceFullResynchronization))
+            instance = RecoveryTripletsFactory.instance(gpArray, self.__options.recoveryConfigFile, self.__options.newRecoverHosts)
+            segs = [GpMirrorToBuild(t.failed, t.live, t.failover, self.__options.forceFullResynchronization) for t in instance.getTriplets()]
 
             return GpMirrorListToBuild(segs, self.__pool, self.__options.quiet,
                                        self.__options.parallelDegree,
