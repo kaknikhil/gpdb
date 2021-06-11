@@ -120,7 +120,7 @@ class Segment:
         """
         Construct a printable string representation of a Segment
         """
-        return "%s:%s:content=%s:dbid=%s:role=%s:preferred_role=%s:mode=%s:status=%s:unreachable:%s" % (
+        return "%s:%s:content=%s:dbid=%s:role=%s:preferred_role=%s:mode=%s:status=%s" % (
             self.hostname,
             self.datadir,
             self.content,
@@ -128,8 +128,7 @@ class Segment:
             self.role,
             self.preferred_role,
             self.mode,
-            self.status,
-            self.unreachable
+            self.status
             )
 
     def __equal(self, other, ignoreAttr=[]):

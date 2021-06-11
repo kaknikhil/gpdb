@@ -65,17 +65,6 @@ class GpRecoverSegmentProgramTestCase(GpTestCase):
         # such as  self.subject._GpRecoverSegmentProgram__pool = mock_pool
         self.subject._GpRecoverSegmentProgram__pool = self.worker_pool
 
-    def test_output_segments_with_persistent_mirroring_disabled_should_print_failed_segments(self):
-        segs_with_persistent_mirroring_disabled = [0, 1]
-        self.subject._output_segments_with_persistent_mirroring_disabled(segs_with_persistent_mirroring_disabled)
-        self.subject.logger.warn.assert_called_once_with(
-            'Segments with dbid 0, 1 not recovered; persistent mirroring state is disabled.')
-
-    def test_output_segments_with_persistent_mirroring_disabled_should_not_print_if_no_segments(self):
-        segs_with_persistent_mirroring_disabled = []
-        self.subject._output_segments_with_persistent_mirroring_disabled(segs_with_persistent_mirroring_disabled)
-        assert not self.subject.logger.warn.called
-
     ############################################################
     # Private
     def _get_mock_segment(self, name, port, address, datadir):

@@ -317,7 +317,13 @@ class RecoveryTripletsFactoryTestCase(GpTestCase):
                 "gparray": self.content0_mirror_and_its_peer_down_gparray_str,
                 "new_hosts": ['new_1', 'new_2'],
                 "unreachable_hosts": [],
-                #TODO had to change the error message after the refactor.
+                "expected": "Primary segment is not up for content 0"
+            },
+            {
+                "name": "both_peers_down2",
+                "gparray": self.content0_mirror_and_its_peer_down_gparray_str2,
+                "new_hosts": ['new_1', 'new_2'],
+                "unreachable_hosts": [],
                 "expected": "Segment to recover from for content 0 is not a primary"
             },
             {
@@ -420,6 +426,16 @@ class RecoveryTripletsFactoryTestCase(GpTestCase):
                                   8|2|m|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2
                                   9|3|m|m|s|u|sdw3|sdw3|21001|/mirror/gpseg3
                                   6|0|p|m|s|d|sdw2|sdw2|21000|/mirror/gpseg0
+                                  7|1|m|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1
+                                  4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
+                                  5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3'''
+
+        self.content0_mirror_and_its_peer_down_gparray_str2 = '''1|-1|p|p|n|u|mdw|mdw|5432|/master/gpseg-1
+                                  2|0|m|p|s|d|sdw2|sdw2|20000|/primary/gpseg0
+                                  3|1|p|p|s|u|sdw1|sdw1|20001|/primary/gpseg1
+                                  8|2|m|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2
+                                  9|3|m|m|s|u|sdw3|sdw3|21001|/mirror/gpseg3
+                                  6|0|p|m|s|d|sdw1|sdw1|21000|/mirror/gpseg0
                                   7|1|m|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1
                                   4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
                                   5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3'''
