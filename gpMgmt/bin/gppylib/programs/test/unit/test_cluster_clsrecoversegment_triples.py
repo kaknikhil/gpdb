@@ -155,12 +155,26 @@ class RecoveryTripletsFactoryTestCase(GpTestCase):
                 "config": "sdw1|20000|/primary/gpseg0 sdw3|20000|/primary/gpseg5",
                 "expected": "Primary segment is not up for content 0"
             },
+            {
+                "name": "failed_and_live_same_dbid",
+                "gparray": """1|-1|p|p|n|u|mdw|mdw|5432|/master/gpseg-1
+                               2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0
+                               3|1|p|p|s|u|sdw1|sdw1|20001|/primary/gpseg1
+                               8|2|m|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2
+                               9|3|m|m|s|u|sdw3|sdw3|21001|/mirror/gpseg3
+                               2|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0
+                               7|1|m|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1
+                               4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
+                               5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3""",
+                "config": "sdw1|20000|/primary/gpseg0 sdw3|20000|/primary/gpseg5",
+                "expected": "For content 2, the dbid values are the same.  A segment may not be recovered from itself"
+            },
             #
             #
             # TODO: these should fail, but right now do not.  For recovery port and host, we should detect them here.
             #   For recovery data directory, it is not clear where the check should go.
             # {
-            #     "name": "invalid_recovery_address",
+            #     "name": "invalid_recovery_host",
             #     "config": "sdw1|20000|/primary/gpseg0 host_does_not_exist|20001|/primary/gpseg5",
             # },
             # {
@@ -313,22 +327,22 @@ class RecoveryTripletsFactoryTestCase(GpTestCase):
                 "unreachable_existing_hosts": ['sdw2'],
                 "expected": "The recovery source segment sdw2 \(content 0\) is unreachable"
             },
-
+            {
+            "name": "failed_and_live_same_dbid",
+            "gparray": """1|-1|p|p|n|u|mdw|mdw|5432|/master/gpseg-1
+                       2|0|m|p|s|d|sdw1|sdw1|20000|/primary/gpseg0
+                       3|1|p|p|s|u|sdw1|sdw1|20001|/primary/gpseg1
+                       8|2|m|m|s|u|sdw3|sdw3|21000|/mirror/gpseg2
+                       9|3|m|m|s|u|sdw3|sdw3|21001|/mirror/gpseg3
+                       2|0|p|m|s|u|sdw2|sdw2|21000|/mirror/gpseg0
+                       7|1|m|m|s|u|sdw2|sdw2|21001|/mirror/gpseg1
+                       4|2|p|p|s|u|sdw2|sdw2|20000|/primary/gpseg2
+                       5|3|p|p|s|u|sdw2|sdw2|20001|/primary/gpseg3""",
+            "new_hosts": ['new_1'],
+            "expected": "For content 2, the dbid values are the same.  A segment may not be recovered from itself"
+            }
         ]
         self.run_fail_tests(tests, self.run_single_GpArray_test)
-
-    # FIXME: return a copy,but do not copy None!
-    # def _update_triplets(self, triplets, updates=[]):
-    #     if not updates:
-    #         updates = []
-    #
-    #     for triplet in triplets:
-    #         if triplet.failed.hostname in updates:
-    #             triplet.failed.unreachable = True
-    #             print("CHANGING IT....")
-    #
-    #     return triplets
-    #
 
     def run_pass_tests(self, tests, fn_to_test):
         for test in tests:
